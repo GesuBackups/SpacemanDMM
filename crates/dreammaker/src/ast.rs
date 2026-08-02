@@ -922,6 +922,16 @@ pub struct Prefab {
     pub vars: Box<[(Ident, Expression)]>,
 }
 
+impl Prefab {
+    fn nameof(&self) -> Option<&str> {
+        if self.vars.is_empty() {
+            Some(&self.path.last()?.1)
+        } else {
+            None
+        }
+    }
+}
+
 impl From<TypePath> for Prefab {
     fn from(path: TypePath) -> Self {
         Prefab {
@@ -1274,7 +1284,7 @@ impl Term {
         match self {
             Term::Expr(e) => e.nameof(),
             Term::Ident(i) => Some(i),
-            Term::Prefab(fab) if fab.vars.is_empty() => Some(&fab.path.last()?.1),
+            Term::Prefab(fab) => fab.nameof(),
             Term::GlobalIdent(i) => Some(i),
             _ => None,
         }
