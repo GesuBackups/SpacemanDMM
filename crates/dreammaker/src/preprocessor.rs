@@ -734,25 +734,31 @@ impl<'ctx> Preprocessor<'ctx> {
 
     #[allow(unreachable_code)]
     fn real_next(&mut self, read: Token, inside_condition: bool) -> Result<(), DMError> {
-        let mut _last_expected_loc = self.last_input_loc;
         macro_rules! next {
             () => {
                 match self.inner_next() {
-                    Some(x) => {
-                        _last_expected_loc = x.location;
-                        x.token
-                    },
+                    Some(x) => x.token,
                     None => return Err(self.error("unexpected EOF")),
                 }
             };
         }
         macro_rules! expect_token {
-            (($($i:ident),*) = $p:pat) => {
-                let ($($i,)*) = match next!() {
-                    $p => ($($i,)*),
-                    other => return Err(self.error(format!("unexpected token {:?}, expecting {}", other, stringify!($p))))
+            ($p:pat, $p2:pat) => {
+                let Some(lt) = self.inner_next() else {
+                    return Err(self.error("unexpected EOF"));
                 };
-            }
+                let $p = lt.token else {
+                    return Err(self.error(format!(
+                        "unexpected token {:?}, expecting {}",
+                        lt.token,
+                        stringify!($p)
+                    )));
+                };
+                let $p2 = lt.location;
+            };
+            ($p:pat) => {
+                expect_token!($p, _);
+            };
         }
 
         #[rustfmt::skip]
@@ -764,7 +770,7 @@ impl<'ctx> Preprocessor<'ctx> {
         match read {
             Token::Punct(Punctuation::Hash) => {
                 // preprocessor directive, next thing ought to be an ident
-                expect_token!((ident) = Token::Ident(ident, _));
+                expect_token!(Token::Ident(ident, _));
                 match &ident[..] {
                     // ifdefs
                     "endif" => {
@@ -778,15 +784,15 @@ impl<'ctx> Preprocessor<'ctx> {
                         self.ifdef_stack.push(last.else_(self.last_input_loc));
                     },
                     "ifdef" => {
-                        expect_token!((define_name) = Token::Ident(define_name, _));
-                        expect_token!(() = Token::Punct(Punctuation::Newline));
+                        expect_token!(Token::Ident(define_name, _));
+                        expect_token!(Token::Punct(Punctuation::Newline));
                         let enabled = self.is_defined(&define_name);
                         self.ifdef_stack
                             .push(Ifdef::new(self.last_input_loc, enabled));
                     },
                     "ifndef" => {
-                        expect_token!((define_name) = Token::Ident(define_name, _));
-                        expect_token!(() = Token::Punct(Punctuation::Newline));
+                        expect_token!(Token::Ident(define_name, _));
+                        expect_token!(Token::Punct(Punctuation::Newline));
                         let enabled = !self.is_defined(&define_name);
                         self.ifdef_stack
                             .push(Ifdef::new(self.last_input_loc, enabled));
@@ -810,9 +816,8 @@ impl<'ctx> Preprocessor<'ctx> {
                     // include searches relevant paths for files
                     "include" if disabled => {},
                     "include" => {
-                        expect_token!((path_str) = Token::String(path_str));
-                        let include_loc = _last_expected_loc;
-                        expect_token!(() = Token::Punct(Punctuation::Newline));
+                        expect_token!(Token::String(path_str), include_loc);
+                        expect_token!(Token::Punct(Punctuation::Newline));
                         let path = PathBuf::from(path_str.replace('\\', "/"));
 
                         for candidate in [
@@ -907,8 +912,7 @@ impl<'ctx> Preprocessor<'ctx> {
                         let mut docs = DocCollection::default();
                         docs.extend(self.docs_in.drain(..).map(|x| x.1));
 
-                        expect_token!((define_name, ws) = Token::Ident(define_name, ws));
-                        let define_name_loc = _last_expected_loc;
+                        expect_token!(Token::Ident(define_name, ws), define_name_loc);
                         if let Some(annotations) = self.annotations.as_mut() {
                             annotations.insert(
                                 define_name_loc
@@ -1039,9 +1043,8 @@ impl<'ctx> Preprocessor<'ctx> {
                     },
                     "undef" if disabled => {},
                     "undef" => {
-                        expect_token!((define_name) = Token::Ident(define_name, _));
-                        let define_name_loc = _last_expected_loc;
-                        expect_token!(() = Token::Punct(Punctuation::Newline));
+                        expect_token!(Token::Ident(define_name, _), define_name_loc);
+                        expect_token!(Token::Punct(Punctuation::Newline));
                         if let Some(previous) = self.defines.remove(&define_name) {
                             self.move_to_history(define_name, previous);
                         } else {
@@ -1056,7 +1059,7 @@ impl<'ctx> Preprocessor<'ctx> {
                     },
                     "warn" if disabled => {},
                     "warn" => {
-                        expect_token!((text) = Token::String(text));
+                        expect_token!(Token::String(text));
                         DMError::new(
                             self.last_input_loc,
                             format!("#{} {}", ident, text.trim_end_matches(['\r', '\n'])),
@@ -1066,7 +1069,7 @@ impl<'ctx> Preprocessor<'ctx> {
                     },
                     "error" if disabled => {},
                     "error" => {
-                        expect_token!((text) = Token::String(text));
+                        expect_token!(Token::String(text));
                         self.context.register_error(DMError::new(
                             self.last_input_loc,
                             format!("#{} {}", ident, text.trim_end_matches(['\r', '\n'])),
@@ -1074,8 +1077,7 @@ impl<'ctx> Preprocessor<'ctx> {
                     },
                     "pragma" if disabled => {},
                     "pragma" => {
-                        expect_token!((text) = Token::Ident(text, _));
-                        let pragma_use_loc = _last_expected_loc;
+                        expect_token!(Token::Ident(text, _), pragma_use_loc);
                         if text.as_str() == "multiple" {
                             self.multiple_locations
                                 .insert(pragma_use_loc.file, pragma_use_loc);
