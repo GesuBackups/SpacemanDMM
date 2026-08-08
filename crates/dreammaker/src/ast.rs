@@ -1514,7 +1514,7 @@ pub enum Statement {
     Return(Option<Expression>),
     Throw(Expression),
     While {
-        condition: Expression,
+        condition: Box<Spanned<Expression>>,
         block: Block,
     },
     DoWhile {

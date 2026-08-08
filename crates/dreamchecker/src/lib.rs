@@ -1719,7 +1719,7 @@ impl<'o, 's> AnalyzeProc<'o, 's> {
             Statement::While { condition, block } => {
                 let mut scoped_locals = local_vars.clone();
                 // We don't check for static/determine conditions because while(TRUE) is so common.
-                self.visit_expression(location, condition, None, &mut scoped_locals);
+                self.visit_expression(location, &condition.elem, None, &mut scoped_locals);
                 let mut state = self.visit_block(block, &mut scoped_locals, false);
                 state.end_loop();
                 return state;

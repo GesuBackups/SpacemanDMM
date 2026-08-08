@@ -262,7 +262,7 @@ impl<'o> WalkProc<'o> {
                 self.visit_expression(location, expr, None);
             },
             Statement::While { condition, block } => {
-                self.visit_expression(location, condition, None);
+                self.visit_expression(location, &condition.elem, None);
                 self.visit_block(block);
             },
             Statement::DoWhile { block, condition } => {

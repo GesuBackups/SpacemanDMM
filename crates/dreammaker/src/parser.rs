@@ -1534,10 +1534,13 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
         } else if let Some(()) = self.exact_ident("while")? {
             // statement :: 'while' '(' expression ')' block
             require!(self.exact(Token::Punct(Punctuation::LParen)));
-            let condition = require!(self.expression());
+            let condition = Spanned::new(self.location, require!(self.expression()));
             require!(self.exact(Token::Punct(Punctuation::RParen)));
             let block = require!(self.block(&LoopContext::While));
-            spanned(Statement::While { condition, block })
+            spanned(Statement::While {
+                condition: Box::new(condition),
+                block,
+            })
         } else if let Some(()) = self.exact_ident("do")? {
             // statement :: 'do' block 'while' '(' expression ')' ';'
             let block = require!(self.block(&LoopContext::DoWhile));
