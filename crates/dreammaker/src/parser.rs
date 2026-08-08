@@ -1614,7 +1614,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
                             let (var_type, key) = match init {
                                 Some(Statement::Var(var_statement)) => match var_statement.value {
                                     None => (Some(var_statement.var_type), var_statement.name),
-                                    _ => return Err(self.error("cannot assigned a value to key in a for(key, value) statement")),
+                                    _ => return Err(self.error("cannot assign a value to key in a for(key, value) statement")),
                                 },
                                 Some(Statement::Expr(expr)) => match expr.into_term() {
                                     Some(Term::Ident(name)) => (None, name),
@@ -1624,12 +1624,13 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
                             };
                             // Value is the lhs of for(k, [v in x])
                             // It should also pass only if it's an ident
-                            let value = match lhs.into_term() {
-                                Some(Term::Ident(value)) => value,
-                                _ => return Err(self.error(
-                                    "value must be a variable in a for (key, value) statement",
-                                )),
-                            };
+                            let value =
+                                match lhs.into_term() {
+                                    Some(Term::Ident(value)) => value,
+                                    _ => return Err(self.error(
+                                        "value must be a variable in a for (key, value) statement",
+                                    )),
+                                };
                             // TODO : check if `x` is an ident/a "list()" or "alist()" statement ?
                             require!(self.exact(Token::Punct(Punctuation::RParen)));
                             // Returns a for(k,v)

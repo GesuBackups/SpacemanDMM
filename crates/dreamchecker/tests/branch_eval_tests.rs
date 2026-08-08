@@ -140,7 +140,7 @@ fn for_kv_value_check() {
 pub const FOR_KV_KEY_ERROR: &[(u32, u16, &str)] = &[(
     3,
     27,
-    "cannot assigned a value to key in a for(key, value) statement",
+    "cannot assign a value to key in a for(key, value) statement",
 )];
 
 #[test]
