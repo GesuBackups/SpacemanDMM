@@ -1,9 +1,9 @@
 extern crate dreammaker as dm;
 
-use dm::constants::*;
+use dm::{Location, constants::*};
 
 fn eval(code: &str) -> Result<Constant, dm::DMError> {
-    dm::constants::evaluate_str(Default::default(), code.as_bytes())
+    dm::constants::evaluate_str(Location::INVALID, code.as_bytes())
 }
 
 #[test]

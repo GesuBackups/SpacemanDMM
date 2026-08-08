@@ -17,7 +17,7 @@ const DM_BUILD: i32 = 1666;
 pub fn default_defines(defines: &mut DefineMap) {
     use super::lexer::Token::*;
     use super::lexer::*;
-    let location = Location::builtins();
+    let location = Location::BUILTINS;
 
     // #define EXCEPTION(value) new /exception(value)
     defines.insert(
@@ -81,7 +81,7 @@ pub fn default_defines(defines: &mut DefineMap) {
             let previous = defines.insert(
                 crate::ast::Ident::from_static(name),
                 (
-                    Location::builtins(),
+                    Location::BUILTINS,
                     Define::Constant {
                         subst: value.to_vec(),
                         docs: Default::default(),

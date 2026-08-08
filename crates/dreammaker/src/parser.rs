@@ -382,7 +382,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
             eof: false,
             possible_indentation_error: false,
             next: None,
-            location: Default::default(),
+            location: Location::INVALID,
             expected: Vec::new(),
             skipping_location: None,
 
@@ -1311,9 +1311,12 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
 
         if let Some(()) = self.exact(Punct(Ellipsis))? {
             return success(Parameter {
+                var_type: Default::default(),
                 name: ident!("..."),
+                default: None,
+                input_type: None,
+                in_list: None,
                 location: self.location,
-                ..Default::default()
             });
         }
 

@@ -1,12 +1,13 @@
 extern crate dreammaker as dm;
 
+use dm::FileId;
 use dm::lexer::Punctuation::*;
 use dm::lexer::Token::*;
 use dm::lexer::*;
 
 fn lex(f: &str) -> Vec<Token> {
     let context = Default::default();
-    let result = Lexer::new(&context, Default::default(), f.as_bytes())
+    let result = Lexer::new(&context, FileId::INVALID, f.as_bytes())
         .map(|t| t.token)
         .collect();
     context.assert_success();

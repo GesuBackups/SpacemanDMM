@@ -828,7 +828,7 @@ impl Debugger {
         &mut self,
         params: P<SetFunctionBreakpoints>,
     ) -> R<SetFunctionBreakpoints> {
-        let file_id = FileId::default();
+        let file_id = FileId::INVALID;
 
         let inputs = params.breakpoints;
         let mut breakpoints = Vec::new();
@@ -1129,7 +1129,9 @@ impl Debugger {
                 let frame_no = frame_id / threads.len();
 
                 let Some(frame) = threads[&thread_id].call_stack.get(frame_no) else {
-                    return Err(Box::new(GenericError2(format!("Stack frame out of range: {frameId} (thread {thread_id}, depth {frame_no})"))));
+                    return Err(Box::new(GenericError2(format!(
+                        "Stack frame out of range: {frameId} (thread {thread_id}, depth {frame_no})"
+                    ))));
                 };
 
                 Ok(ScopesResponse {

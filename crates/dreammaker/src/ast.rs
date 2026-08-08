@@ -875,6 +875,13 @@ impl<T> Spanned<T> {
     pub fn new(location: Location, elem: T) -> Spanned<T> {
         Spanned { location, elem }
     }
+
+    pub fn invalid(elem: T) -> Spanned<T> {
+        Spanned {
+            location: Location::INVALID,
+            elem,
+        }
+    }
 }
 
 /// An absolute tree path like `/ident/ident`.
@@ -1118,7 +1125,7 @@ impl From<Term> for Expression {
         match term {
             Term::Expr(expr) => *expr,
             term => Expression::Base {
-                term: Box::new(Spanned::new(Default::default(), term)),
+                term: Box::new(Spanned::invalid(term)),
                 follow: Default::default(),
             },
         }
@@ -1371,7 +1378,7 @@ impl From<Field> for Follow {
 }
 
 /// A parameter declaration in the header of a proc.
-#[derive(Debug, Clone, PartialEq, Default, GetSize)]
+#[derive(Debug, Clone, PartialEq, GetSize)]
 pub struct Parameter {
     pub var_type: VarType,
     pub name: Ident,

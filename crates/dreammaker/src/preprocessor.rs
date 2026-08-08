@@ -422,7 +422,7 @@ impl<'ctx> HasLocation for Preprocessor<'ctx> {
         match self.include_stack.stack.last() {
             Some(Include::File { lexer, .. }) => lexer.location(),
             Some(&Include::Expansion { location, .. }) => location,
-            None => Location::default(),
+            None => Location::INVALID,
         }
     }
 }
@@ -449,8 +449,8 @@ impl<'ctx> Preprocessor<'ctx> {
             scripts: Default::default(),
             ifdef_stack: Default::default(),
             ifdef_history: Default::default(),
-            last_input_loc: Default::default(),
-            last_printable_input_loc: Default::default(),
+            last_input_loc: Location::INVALID,
+            last_printable_input_loc: Location::INVALID,
             output: Default::default(),
             danger_idents: Default::default(),
             docs_in: Default::default(),
@@ -484,8 +484,8 @@ impl<'ctx> Preprocessor<'ctx> {
             scripts: Default::default(),
             ifdef_stack: Default::default(),
             ifdef_history: Default::default(),
-            last_input_loc: Default::default(),
-            last_printable_input_loc: Default::default(),
+            last_input_loc: Location::INVALID,
+            last_printable_input_loc: Location::INVALID,
             output: Default::default(),
             danger_idents: Default::default(),
             docs_in: Default::default(),
@@ -503,7 +503,7 @@ impl<'ctx> Preprocessor<'ctx> {
                 // collisions in the interval tree.
                 i += 1;
                 let end = Location {
-                    file: FileId::default(),
+                    file: FileId::INVALID,
                     line: !0,
                     column: i,
                 };
@@ -1143,7 +1143,7 @@ impl<'ctx> Preprocessor<'ctx> {
                         target: DocTarget::FollowingItem,
                         text: dm_path,
                     });
-                    self.annotate_macro(ident, Location::builtins(), Some(Rc::new(doc_collection)));
+                    self.annotate_macro(ident, Location::BUILTINS, Some(Rc::new(doc_collection)));
                     for include in self.include_stack.stack.iter().rev() {
                         if let Include::File { ref path, .. } = *include {
                             self.push_output(Token::String(path.display().to_string()));
@@ -1159,7 +1159,7 @@ impl<'ctx> Preprocessor<'ctx> {
                         target: DocTarget::FollowingItem,
                         text: self.last_input_loc.line.to_string(),
                     });
-                    self.annotate_macro(ident, Location::builtins(), Some(Rc::new(doc_collection)));
+                    self.annotate_macro(ident, Location::BUILTINS, Some(Rc::new(doc_collection)));
                     self.push_output(Token::Int(self.last_input_loc.line as i32));
                     return Ok(());
                 }

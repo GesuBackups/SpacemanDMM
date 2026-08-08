@@ -263,7 +263,7 @@ impl<'o> Analysis<'o> {
     }
 
     fn with_fix_hint<S: Into<String>>(mut self, location: Location, desc: S) -> Self {
-        if location != Location::default() {
+        if location != Location::INVALID {
             self.fix_hint = Some((location, desc.into()));
         }
         self
@@ -405,7 +405,6 @@ struct CalledAt {
     others: u32,
 }
 
-#[derive(Default)]
 struct KwargInfo {
     location: Location,
     // kwarg name -> location that the proc is called with that arg
@@ -1398,7 +1397,7 @@ struct LocalVar<'o> {
 impl<'o> From<Analysis<'o>> for LocalVar<'o> {
     fn from(analysis: Analysis<'o>) -> Self {
         LocalVar {
-            location: Location::default(),
+            location: Location::INVALID,
             analysis,
         }
     }
@@ -3303,7 +3302,8 @@ impl<'o, 's> AnalyzeProc<'o, 's> {
                                     .entry(format!("{}/proc/{}", src, proc.name()))
                                     .or_insert_with(|| KwargInfo {
                                         location: proc.location,
-                                        ..Default::default()
+                                        called_at: Default::default(),
+                                        bad_overrides_at: Default::default(),
                                     })
                                     .called_at
                                     // TODO: use a more accurate location

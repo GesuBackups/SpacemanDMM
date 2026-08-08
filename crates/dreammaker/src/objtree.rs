@@ -845,7 +845,7 @@ impl Default for ObjectTreeBuilder {
         tree.graph.push(Type {
             path: String::new(),
             path_last_slash: usize::MAX,
-            location: Default::default(),
+            location: Location::INVALID,
             location_specificity: 0,
             vars: Default::default(),
             procs: Default::default(),
@@ -1304,7 +1304,7 @@ impl ObjectTreeBuilder {
 
     pub(crate) fn add_builtin_type(&mut self, elems: &[&'static str]) -> &mut Type {
         self.add_type(
-            Location::builtins(),
+            Location::BUILTINS,
             elems.iter().copied().map(Ident::from_static),
             elems.len() + 1,
             Default::default(),
@@ -1332,7 +1332,7 @@ impl ObjectTreeBuilder {
         elems: &[&'static str],
         value: Option<Constant>,
     ) -> &mut VarValue {
-        let location = Location::builtins();
+        let location = Location::BUILTINS;
         let mut path = elems.iter().copied().map(Ident::from_static);
         let len = elems.len() + 1;
 
@@ -1363,16 +1363,19 @@ impl ObjectTreeBuilder {
     ) -> &mut ProcValue {
         self.add_proc(
             &Default::default(),
-            Location::builtins(),
+            Location::BUILTINS,
             elems.iter().copied().map(Ident::from_static),
             elems.len() + 1,
             params
                 .iter()
                 .copied()
                 .map(|param| Parameter {
-                    // NB: not intering proc arguments yet...
+                    var_type: Default::default(),
                     name: Ident::from(param),
-                    ..Default::default()
+                    default: None,
+                    input_type: None,
+                    in_list: None,
+                    location: Location::BUILTINS,
                 })
                 .collect(),
             None,

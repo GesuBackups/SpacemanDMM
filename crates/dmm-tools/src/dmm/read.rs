@@ -6,12 +6,12 @@ use std::mem::take;
 use ndarray::Array3;
 
 use dm::lexer::{LocationTracker, from_utf8_or_latin1};
-use dm::{DMError, Location};
+use dm::{DMError, FileId, Location};
 
 use super::{Key, KeyType, Map, Prefab};
 
 pub fn parse_map(map: &mut Map, path: &std::path::Path) -> Result<(), DMError> {
-    let file_id = Default::default();
+    let file_id = FileId::INVALID;
     let mut chars = LocationTracker::new(file_id, dm::lexer::buffer_file(file_id, path)?.into());
 
     let mut in_comment_line = false;
@@ -33,9 +33,9 @@ pub fn parse_map(map: &mut Map, path: &std::path::Path) -> Result<(), DMError> {
     let mut escaping = false;
     let mut skip_whitespace = false;
 
-    let mut curr_key_start_location = Location::default();
+    let mut curr_key_start_location = Location::INVALID;
 
-    let mut curr_datum_start_location = Location::default();
+    let mut curr_datum_start_location = Location::INVALID;
     macro_rules! set_curr_datum_start_location {
         () => {
             if curr_datum.is_empty() {
