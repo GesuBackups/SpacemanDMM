@@ -25,7 +25,7 @@ pub type Arguments = [(Constant, Option<Constant>)];
 /// The path may involve `/proc` or `/verb` references.
 #[derive(Clone, Debug, GetSize)]
 pub struct Pop {
-    pub path: TreePath,
+    pub path: AbsolutePath,
     #[get_size(size_fn = heap_size_of_index_map)]
     pub vars: IndexMap<Ident, Constant, RandomState>,
 }
@@ -55,8 +55,8 @@ impl std::hash::Hash for Pop {
     }
 }
 
-impl From<TreePath> for Pop {
-    fn from(path: TreePath) -> Self {
+impl From<AbsolutePath> for Pop {
+    fn from(path: AbsolutePath) -> Self {
         Pop {
             path,
             vars: Default::default(),
@@ -69,7 +69,7 @@ impl fmt::Display for Pop {
         write!(
             f,
             "{}{}",
-            FormatTreePath(&self.path),
+            FormatAbsolutePath(&self.path),
             FormatVars(&self.vars)
         )
     }
@@ -82,7 +82,7 @@ impl fmt::Display for Pop {
 #[derive(Debug, Clone, GetSize)]
 pub enum Constant {
     /// The literal `null`.
-    Null(Option<TreePath>),
+    Null(Option<AbsolutePath>),
     /// A `new` call.
     New {
         /// The type to be instantiated.
@@ -622,7 +622,7 @@ impl<'a> ConstantFolder<'a> {
     fn expr(
         &mut self,
         expression: Expression,
-        type_hint: Option<&TreePath>,
+        type_hint: Option<&AbsolutePath>,
     ) -> Result<Constant, DMError> {
         Ok(match expression {
             Expression::Base { term, follow } => {
@@ -715,11 +715,11 @@ impl<'a> ConstantFolder<'a> {
                     return Err(self.error("no type tree available"));
                 };
                 let Some(real_type) =
-                    tree.find(FormatTreePath(&read_from.path).to_string().as_str())
+                    tree.find(FormatAbsolutePath(&read_from.path).to_string().as_str())
                 else {
                     return Err(self.error(format!(
                         "{} was not a valid type",
-                        FormatTreePath(&read_from.path)
+                        FormatAbsolutePath(&read_from.path)
                     )));
                 };
                 self.recursive_lookup(real_type.index(), &field, false)
@@ -735,11 +735,11 @@ impl<'a> ConstantFolder<'a> {
                     return Err(self.error("no type tree available"));
                 };
                 let Some(real_type) =
-                    tree.find(FormatTreePath(&read_from.path).to_string().as_str())
+                    tree.find(FormatAbsolutePath(&read_from.path).to_string().as_str())
                 else {
                     return Err(self.error(format!(
                         "{} was not a valid type",
-                        FormatTreePath(&read_from.path)
+                        FormatAbsolutePath(&read_from.path)
                     )));
                 };
                 self.proc_ref_lookup(real_type.index(), &field)
@@ -822,7 +822,7 @@ impl<'a> ConstantFolder<'a> {
         }
     }
 
-    fn term(&mut self, term: Term, type_hint: Option<&TreePath>) -> Result<Constant, DMError> {
+    fn term(&mut self, term: Term, type_hint: Option<&AbsolutePath>) -> Result<Constant, DMError> {
         Ok(match term {
             Term::Null => Constant::Null(type_hint.cloned()),
             Term::NewPrefab { prefab, args } => Constant::New {
@@ -868,8 +868,9 @@ impl<'a> ConstantFolder<'a> {
                     match args[0].as_term() {
                         Some(Term::Ident(ident)) => Constant::from(defines.contains_key(ident)),
                         _ => {
-                            return Err(self
-                                .error("malformed defined() call, argument given isn't an Ident."));
+                            return Err(self.error(
+                                "malformed defined() call, argument given isn't an Ident.",
+                            ));
                         },
                     }
                 },
@@ -907,8 +908,9 @@ impl<'a> ConstantFolder<'a> {
                             current_dir.join(passed_path).exists().into()
                         },
                         _ => {
-                            return Err(self
-                                .error("malformed fexists() call, argument given isn't a string."));
+                            return Err(self.error(
+                                "malformed fexists() call, argument given isn't a string.",
+                            ));
                         },
                     }
                 },
@@ -991,7 +993,7 @@ impl<'a> ConstantFolder<'a> {
         // If the path is all slashes, it's absolute, and doesn't need to be
         // further resolved.
         if prefab.path.iter().all(|&(op, _)| op == PathOp::Slash) {
-            let path: TreePath = prefab
+            let path: AbsolutePath = prefab
                 .path
                 .iter()
                 .map(|(_, name)| name.to_owned())
@@ -1005,7 +1007,7 @@ impl<'a> ConstantFolder<'a> {
             None => {
                 return Err(self.error(format!(
                     "cannot resolve relative type path without an object tree: {}",
-                    FormatTypePath(&prefab.path)
+                    FormatRelativePath(&prefab.path)
                 )));
             },
         };
@@ -1016,7 +1018,7 @@ impl<'a> ConstantFolder<'a> {
             None => {
                 return Err(self.error(format!(
                     "could not resolve {} relative to {}",
-                    FormatTypePath(&prefab.path),
+                    FormatRelativePath(&prefab.path),
                     relative_to
                 )));
             },
@@ -1155,8 +1157,9 @@ impl<'a> ConstantFolder<'a> {
                             },
                         },
                         _ => {
-                            return Err(self
-                                .error(format!("malformed rgb() call, bad kwarg passed: {kwarg}")));
+                            return Err(self.error(format!(
+                                "malformed rgb() call, bad kwarg passed: {kwarg}"
+                            )));
                         },
                     }
                 } else {
@@ -1238,8 +1241,9 @@ impl<'a> ConstantFolder<'a> {
                         "a" | "alpha" => 0..=255,
                         "space" => continue, // Don't range-check the value of the space
                         _ => {
-                            return Err(self
-                                .error(format!("malformed rgb() call, bad kwarg passed: {kwarg}")));
+                            return Err(self.error(format!(
+                                "malformed rgb() call, bad kwarg passed: {kwarg}"
+                            )));
                         },
                     };
                 } else {

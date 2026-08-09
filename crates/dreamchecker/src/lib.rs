@@ -1214,7 +1214,7 @@ fn static_type<'o>(
     } else {
         Err(error(
             location,
-            format!("undefined type: {}", FormatTreePath(of)),
+            format!("undefined type: {}", FormatAbsolutePath(of)),
         ))
     }
 }
@@ -2451,7 +2451,10 @@ impl<'o, 's> AnalyzeProc<'o, 's> {
                 } else {
                     error(
                         location,
-                        format!("failed to resolve path {}", FormatTypePath(&prefab.path)),
+                        format!(
+                            "failed to resolve path {}",
+                            FormatRelativePath(&prefab.path)
+                        ),
                     )
                     .register(self.context);
                     Analysis::empty()
@@ -2559,7 +2562,10 @@ impl<'o, 's> AnalyzeProc<'o, 's> {
                 } else {
                     error(
                         location,
-                        format!("failed to resolve path {}", FormatTypePath(&prefab.path)),
+                        format!(
+                            "failed to resolve path {}",
+                            FormatRelativePath(&prefab.path)
+                        ),
                     )
                     .register(self.context);
                     Analysis::empty()
@@ -2885,7 +2891,7 @@ impl<'o, 's> AnalyzeProc<'o, 's> {
                                 .register(self.context);
                             return Analysis::empty();
                         }
-                        let typepath = dm::ast::FormatTreePath(&typepop.path).to_string();
+                        let typepath = dm::ast::FormatAbsolutePath(&typepop.path).to_string();
                         let Some(found_type) = self.objtree.find(typepath.as_str()) else {
                             error(location, format!("static access requires an existing typepath, {typepath} found instead"))
                                 .register(self.context);
@@ -2987,7 +2993,7 @@ impl<'o, 's> AnalyzeProc<'o, 's> {
                                 .register(self.context);
                             return Analysis::empty();
                         }
-                        let typepath = dm::ast::FormatTreePath(&typepop.path).to_string();
+                        let typepath = dm::ast::FormatAbsolutePath(&typepop.path).to_string();
                         let Some(found_type) = self.objtree.find(typepath.as_str()) else {
                             error(location, format!("static proc reference requires an existing typepath, {typepath} found instead"))
                                 .register(self.context);

@@ -2092,7 +2092,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
         self.prefab_ex(Vec::new())
     }
 
-    fn prefab_ex(&mut self, mut parts: TypePath) -> Status<Box<Prefab>> {
+    fn prefab_ex(&mut self, mut parts: RelativePath) -> Status<Box<Prefab>> {
         // path :: path_sep ident (path_sep ident?)*
         // path_sep :: '/' | '.' | ':'
         let start = self.updated_location();

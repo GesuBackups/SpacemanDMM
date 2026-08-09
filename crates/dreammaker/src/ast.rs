@@ -885,18 +885,18 @@ impl<T> Spanned<T> {
 }
 
 /// An absolute tree path like `/ident/ident`.
-pub type TreePath = Box<[Ident]>;
+pub type AbsolutePath = Box<[Ident]>;
 
-pub fn treepath_from_str(str: &str) -> TreePath {
+pub fn treepath_from_str(str: &str) -> AbsolutePath {
     str.split('/')
         .filter(|elem| !elem.is_empty())
         .map(Ident::from_nonstatic)
-        .collect::<TreePath>()
+        .collect::<AbsolutePath>()
 }
 
-pub struct FormatTreePath<'a, T>(pub &'a [T]);
+pub struct FormatAbsolutePath<'a, T>(pub &'a [T]);
 
-impl<'a, T: fmt::Display> fmt::Display for FormatTreePath<'a, T> {
+impl<'a, T: fmt::Display> fmt::Display for FormatAbsolutePath<'a, T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         for each in self.0.iter() {
             write!(f, "/{each}")?;
@@ -906,11 +906,11 @@ impl<'a, T: fmt::Display> fmt::Display for FormatTreePath<'a, T> {
 }
 
 /// A series of identifiers separated by path operators.
-pub type TypePath = Vec<(PathOp, Ident)>;
+pub type RelativePath = Vec<(PathOp, Ident)>;
 
-pub struct FormatTypePath<'a>(pub &'a [(PathOp, Ident)]);
+pub struct FormatRelativePath<'a>(pub &'a [(PathOp, Ident)]);
 
-impl<'a> fmt::Display for FormatTypePath<'a> {
+impl<'a> fmt::Display for FormatRelativePath<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         for each in self.0.iter() {
             write!(f, "{}{}", each.0, each.1)?;
@@ -925,7 +925,7 @@ impl<'a> fmt::Display for FormatTypePath<'a> {
 /// A typepath optionally followed by a set of variables.
 #[derive(Clone, PartialEq, Debug, GetSize)]
 pub struct Prefab {
-    pub path: TypePath,
+    pub path: RelativePath,
     pub vars: Box<[(Ident, Expression)]>,
 }
 
@@ -939,8 +939,8 @@ impl Prefab {
     }
 }
 
-impl From<TypePath> for Prefab {
-    fn from(path: TypePath) -> Self {
+impl From<RelativePath> for Prefab {
+    fn from(path: RelativePath) -> Self {
         Prefab {
             path,
             vars: Default::default(),
@@ -1402,7 +1402,7 @@ impl fmt::Display for Parameter {
 #[derive(Debug, Clone, PartialEq, Default, GetSize)]
 pub struct VarType {
     pub flags: VarTypeFlags,
-    pub type_path: TreePath,
+    pub type_path: AbsolutePath,
     pub input_type: InputType,
 }
 
@@ -1562,7 +1562,7 @@ pub enum Statement {
     },
     TryCatch {
         try_block: Block,
-        catch_params: Box<[TreePath]>,
+        catch_params: Box<[AbsolutePath]>,
         catch_block: Block,
     },
     Continue(Option<Ident>),

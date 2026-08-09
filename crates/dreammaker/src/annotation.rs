@@ -16,7 +16,7 @@ pub enum Annotation {
     // contextual information
     TreeBlock(Vec<Ident>),
     TreePath(bool, Vec<Ident>),
-    TypePath(TypePath),
+    TypePath(RelativePath),
     Variable(Vec<Ident>),
     ProcHeader(Vec<Ident>, usize),
     ProcBody(Vec<Ident>, usize),
@@ -44,7 +44,7 @@ pub enum Annotation {
 
     // error annotations, mostly for autocompletion
     ScopedMissingIdent(Vec<Ident>), // when a . is followed by a non-ident
-    IncompleteTypePath(TypePath, PathOp),
+    IncompleteTypePath(RelativePath, PathOp),
     IncompleteTreePath(bool, Vec<Ident>),
 
     ProcArguments(Vec<Ident>, Ident, usize), // Vec empty for unscoped call
