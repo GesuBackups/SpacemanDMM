@@ -32,7 +32,7 @@ pub struct Pop {
 
 impl Pop {
     pub fn from_path_str(path: &str) -> Self {
-        Self::from(treepath_from_str(path))
+        Self::from(AbsolutePath::from(path))
     }
 }
 
@@ -66,12 +66,7 @@ impl From<AbsolutePath> for Pop {
 
 impl fmt::Display for Pop {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "{}{}",
-            FormatAbsolutePath(&self.path),
-            FormatVars(&self.vars)
-        )
+        write!(f, "{}{}", self.path, FormatVars(&self.vars))
     }
 }
 
@@ -714,13 +709,8 @@ impl<'a> ConstantFolder<'a> {
                 let Some(ref tree) = self.tree else {
                     return Err(self.error("no type tree available"));
                 };
-                let Some(real_type) =
-                    tree.find(FormatAbsolutePath(&read_from.path).to_string().as_str())
-                else {
-                    return Err(self.error(format!(
-                        "{} was not a valid type",
-                        FormatAbsolutePath(&read_from.path)
-                    )));
+                let Some(real_type) = tree.find(read_from.path.to_string().as_str()) else {
+                    return Err(self.error(format!("{} was not a valid type", read_from.path)));
                 };
                 self.recursive_lookup(real_type.index(), &field, false)
             },
@@ -734,13 +724,8 @@ impl<'a> ConstantFolder<'a> {
                 let Some(ref tree) = self.tree else {
                     return Err(self.error("no type tree available"));
                 };
-                let Some(real_type) =
-                    tree.find(FormatAbsolutePath(&read_from.path).to_string().as_str())
-                else {
-                    return Err(self.error(format!(
-                        "{} was not a valid type",
-                        FormatAbsolutePath(&read_from.path)
-                    )));
+                let Some(real_type) = tree.find(read_from.path.to_string().as_str()) else {
+                    return Err(self.error(format!("{} was not a valid type", read_from.path)));
                 };
                 self.proc_ref_lookup(real_type.index(), &field)
             },
@@ -1007,24 +992,23 @@ impl<'a> ConstantFolder<'a> {
             None => {
                 return Err(self.error(format!(
                     "cannot resolve relative type path without an object tree: {}",
-                    FormatRelativePath(&prefab.path)
+                    prefab.path
                 )));
             },
         };
 
         let relative_to = TypeRef::new(tree, self.ty);
-        let found = match relative_to.navigate_path(&prefab.path) {
+        let found = match relative_to.navigate_path(prefab.path.as_slice()) {
             Some(found) => found,
             None => {
                 return Err(self.error(format!(
                     "could not resolve {} relative to {}",
-                    FormatRelativePath(&prefab.path),
-                    relative_to
+                    prefab.path, relative_to
                 )));
             },
         };
 
-        let path = found.to_path().into_boxed_slice();
+        let path = found.to_path();
         Ok(Pop { path, vars })
     }
 
@@ -1090,9 +1074,9 @@ impl<'a> ConstantFolder<'a> {
             path_elements.push(declaration.kind.into());
         }
         path_elements.push(proc_ref.name().to_owned().into());
-        Ok(Constant::Prefab(Box::new(Pop::from(Box::from(
-            path_elements,
-        )))))
+        Ok(Constant::Prefab(Box::new(Pop::from(
+            AbsolutePath::from_iter(path_elements),
+        ))))
     }
 
     fn rgb(&mut self, args: Box<[Expression]>) -> Result<String, DMError> {

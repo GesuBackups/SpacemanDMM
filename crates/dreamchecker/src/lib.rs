@@ -1185,7 +1185,7 @@ fn static_type<'o>(
     location: Location,
     mut of: &[Ident],
 ) -> Result<StaticType<'o>, DMError> {
-    while !of.is_empty()
+    while let Some((first, rest)) = of.split_first()
         && [
             "static",
             "global",
@@ -1196,9 +1196,9 @@ fn static_type<'o>(
             "SpacemanDMM_private",
             "SpacemanDMM_protected",
         ]
-        .contains(&&*of[0])
+        .contains(&first.as_str())
     {
-        of = &of[1..];
+        of = rest;
     }
 
     if of.is_empty() {
@@ -1214,7 +1214,7 @@ fn static_type<'o>(
     } else {
         Err(error(
             location,
-            format!("undefined type: {}", FormatAbsolutePath(of)),
+            format!("undefined type: {}", DisplayAbsolutePath(of)),
         ))
     }
 }
@@ -1468,7 +1468,8 @@ impl<'o, 's> AnalyzeProc<'o, 's> {
         );
 
         for param in self.proc_ref.get().parameters.iter() {
-            let mut analysis = self.static_type(param.location, &param.var_type.type_path);
+            let mut analysis =
+                self.static_type(param.location, param.var_type.type_path.as_slice());
             analysis.is_impure = Some(true); // all params are impure
             local_vars.insert(
                 param.name.clone(),
@@ -2029,7 +2030,7 @@ impl<'o, 's> AnalyzeProc<'o, 's> {
                 }
                 let mut catch_locals = local_vars.clone();
                 for caught in catch_params.iter() {
-                    let (var_name, mut type_path) = match caught.split_last() {
+                    let (var_name, mut type_path) = match caught.as_slice().split_last() {
                         Some(x) => x,
                         None => continue,
                     };
@@ -2132,7 +2133,7 @@ impl<'o, 's> AnalyzeProc<'o, 's> {
                 // There is currently no way to change that.
                 let var_type_value = VarType {
                     flags: VarTypeFlags::default(),
-                    type_path: Box::new([]),
+                    type_path: AbsolutePath::default(),
                     input_type: InputType::default(),
                 };
                 self.visit_var(location, &var_type_value, value, None, &mut scoped_locals);
@@ -2168,7 +2169,9 @@ impl<'o, 's> AnalyzeProc<'o, 's> {
         local_vars: &mut HashMap<Ident, LocalVar<'o>>,
     ) {
         // Calculate type hint
-        let static_type = self.env.static_type(location, &var_type.type_path);
+        let static_type = self
+            .env
+            .static_type(location, var_type.type_path.as_slice());
         // Visit the expression if it's there
         let mut analysis = match value {
             Some(expr) => {
@@ -2412,7 +2415,7 @@ impl<'o, 's> AnalyzeProc<'o, 's> {
                     }
                 } else if let Some(decl) = self.ty.get_var_declaration(unscoped_name) {
                     let mut ana = self
-                        .static_type(location, &decl.var_type.type_path)
+                        .static_type(location, decl.var_type.type_path.as_slice())
                         .with_fix_hint(decl.location, "add additional type info here");
                     ana.is_impure = Some(true);
                     ana
@@ -2425,7 +2428,7 @@ impl<'o, 's> AnalyzeProc<'o, 's> {
             Term::GlobalIdent(global_name) => {
                 if let Some(decl) = self.objtree.root().get_var_declaration(global_name) {
                     let mut ana = self
-                        .static_type(location, &decl.var_type.type_path)
+                        .static_type(location, decl.var_type.type_path.as_slice())
                         .with_fix_hint(decl.location, "add additional type info here");
                     ana.is_impure = Some(true);
                     ana
@@ -2438,7 +2441,7 @@ impl<'o, 's> AnalyzeProc<'o, 's> {
 
             Term::Expr(expr) => self.visit_expression(location, expr, type_hint, local_vars),
             Term::Prefab(prefab) => {
-                if let Some(nav) = self.ty.navigate_path(&prefab.path) {
+                if let Some(nav) = self.ty.navigate_path(prefab.path.as_slice()) {
                     let ty = nav.ty(); // TODO: handle proc/verb paths here
                     let pop = dm::constants::Pop::from_path_str(&ty.path);
                     Analysis {
@@ -2449,14 +2452,8 @@ impl<'o, 's> AnalyzeProc<'o, 's> {
                         is_impure: None,
                     }
                 } else {
-                    error(
-                        location,
-                        format!(
-                            "failed to resolve path {}",
-                            FormatRelativePath(&prefab.path)
-                        ),
-                    )
-                    .register(self.context);
+                    error(location, format!("failed to resolve path {}", prefab.path))
+                        .register(self.context);
                     Analysis::empty()
                 }
             },
@@ -2556,18 +2553,12 @@ impl<'o, 's> AnalyzeProc<'o, 's> {
                 }
             },
             Term::NewPrefab { prefab, args } => {
-                if let Some(nav) = self.ty.navigate_path(&prefab.path) {
+                if let Some(nav) = self.ty.navigate_path(prefab.path.as_slice()) {
                     // TODO: handle proc/verb paths here
                     self.visit_new(location, nav.ty(), args, local_vars)
                 } else {
-                    error(
-                        location,
-                        format!(
-                            "failed to resolve path {}",
-                            FormatRelativePath(&prefab.path)
-                        ),
-                    )
-                    .register(self.context);
+                    error(location, format!("failed to resolve path {}", prefab.path))
+                        .register(self.context);
                     Analysis::empty()
                 }
             },
@@ -2853,7 +2844,7 @@ impl<'o, 's> AnalyzeProc<'o, 's> {
                             .with_note(decl.location, "definition is here")
                             .register(self.context);
                         }
-                        self.static_type(location, &decl.var_type.type_path)
+                        self.static_type(location, decl.var_type.type_path.as_slice())
                             .with_fix_hint(decl.location, "add additional type info here")
                     } else {
                         error(location, format!("undefined field: {name:?} on {ty}"))
@@ -2891,7 +2882,7 @@ impl<'o, 's> AnalyzeProc<'o, 's> {
                                 .register(self.context);
                             return Analysis::empty();
                         }
-                        let typepath = dm::ast::FormatAbsolutePath(&typepop.path).to_string();
+                        let typepath = typepop.path.to_string();
                         let Some(found_type) = self.objtree.find(typepath.as_str()) else {
                             error(location, format!("static access requires an existing typepath, {typepath} found instead"))
                                 .register(self.context);
@@ -2909,7 +2900,7 @@ impl<'o, 's> AnalyzeProc<'o, 's> {
                     return Analysis::empty();
                 };
 
-                self.static_type(location, &decl.var_type.type_path)
+                self.static_type(location, decl.var_type.type_path.as_slice())
                     .with_fix_hint(decl.location, "add additional type info here")
             },
 
@@ -2993,7 +2984,7 @@ impl<'o, 's> AnalyzeProc<'o, 's> {
                                 .register(self.context);
                             return Analysis::empty();
                         }
-                        let typepath = dm::ast::FormatAbsolutePath(&typepop.path).to_string();
+                        let typepath = typepop.path.to_string();
                         let Some(found_type) = self.objtree.find(typepath.as_str()) else {
                             error(location, format!("static proc reference requires an existing typepath, {typepath} found instead"))
                                 .register(self.context);
@@ -3021,7 +3012,7 @@ impl<'o, 's> AnalyzeProc<'o, 's> {
                     path_elements.push(declaration.kind.into());
                 }
                 path_elements.push(Ident::from_nonstatic(decl.name()));
-                let path_const = dm::constants::Pop::from(path_elements.into_boxed_slice());
+                let path_const = dm::constants::Pop::from(AbsolutePath::from_iter(path_elements));
                 Analysis {
                     static_ty: StaticType::None,
                     aset: assumption_set![Assumption::IsPath(true, real_type)],

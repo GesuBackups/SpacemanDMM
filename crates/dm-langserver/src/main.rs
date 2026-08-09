@@ -1026,7 +1026,7 @@ impl Engine {
                 }
             },
             Annotation::TypePath(parts) => {
-                match self.follow_type_path(&iter, parts) {
+                match self.follow_type_path(&iter, parts.as_slice()) {
                     // '/datum/proc/foo'
                     Some(completion::TypePathResult { ty, decl: _, proc: Some((proc_name, _)) }) => {
                         if let Some(decl) = ty.get_proc_declaration(proc_name) {
@@ -1761,7 +1761,7 @@ impl Engine {
                 }
             },
             Annotation::TypePath(parts) => {
-                match self.follow_type_path(&iter, parts) {
+                match self.follow_type_path(&iter, parts.as_slice()) {
                     // '/datum/proc/foo'
                     Some(completion::TypePathResult { ty, decl: _, proc: Some((proc_name, proc)) }) => {
                         results.push(self.convert_location(proc.location, &proc.docs, &[&ty.path, "/proc/", proc_name])?);
@@ -1873,15 +1873,15 @@ impl Engine {
                 let (ty, proc_name) = self.find_type_context(&iter);
                 match self.find_unscoped_var(&iter, ty, proc_name, var_name) {
                     UnscopedVar::Parameter { param, .. } => {
-                        type_path = &param.var_type.type_path;
+                        type_path = param.var_type.type_path.as_slice();
                     },
                     UnscopedVar::Variable { ty, .. } => {
                         if let Some(decl) = ty.get_var_declaration(var_name) {
-                            type_path = &decl.var_type.type_path;
+                            type_path = decl.var_type.type_path.as_slice();
                         }
                     },
                     UnscopedVar::Local { var_type, .. } => {
-                        type_path = &var_type.type_path;
+                        type_path = var_type.type_path.as_slice();
                     },
                     UnscopedVar::None => {}
                 }
@@ -1891,7 +1891,7 @@ impl Engine {
                 while let Some(ty) = next {
                     if let Some(var) = ty.get().vars.get(var_name) {
                         if let Some(ref decl) = var.declaration {
-                            type_path = &decl.var_type.type_path;
+                            type_path = decl.var_type.type_path.as_slice();
                             break;
                         }
                     }
@@ -1976,7 +1976,7 @@ impl Engine {
                 any_annotation = true;
             },
             Annotation::TypePath(parts) => {
-                let ((last_op, query), parts) = parts.split_last().unwrap();
+                let ((last_op, query), parts) = parts.as_slice().split_last().unwrap();
                 self.path_completions(&mut results, &iter, parts, *last_op, query);
                 any_annotation = true;
             },
@@ -1999,7 +1999,7 @@ impl Engine {
             },
             Annotation::IncompleteTypePath(parts, last_op) => {
                 results.clear();
-                self.path_completions(&mut results, &iter, parts, *last_op, "");
+                self.path_completions(&mut results, &iter, parts.as_slice(), *last_op, "");
                 any_annotation = true;
                 break;
             },

@@ -1819,7 +1819,8 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
                 require!(
                     self.separated(Punctuation::Comma, Punctuation::RParen, None, |this| {
                         // TODO: improve upon this cheap approximation
-                        success(leading!(this.tree_path(true)).1.into_boxed_slice())
+                        let (_, path) = leading!(this.tree_path(true));
+                        success(AbsolutePath::from_iter(path))
                     })
                 )
             } else {
@@ -2089,7 +2090,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
     // distinct from a tree_path, path must begin with a path separator and can
     // use any path separator rather than just slash, AND can be followed by vars
     fn prefab(&mut self) -> Status<Box<Prefab>> {
-        self.prefab_ex(Vec::new())
+        self.prefab_ex(Default::default())
     }
 
     fn prefab_ex(&mut self, mut parts: RelativePath) -> Status<Box<Prefab>> {
@@ -2390,7 +2391,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
                         // prefab
                         // TODO: arrange for this ident to end up in the prefab's annotation
                         Term::NewPrefab {
-                            prefab: require!(self.prefab_ex(vec![(PathOp::Dot, ident)])),
+                            prefab: require!(self.prefab_ex(RelativePath::single(PathOp::Dot, ident))),
                             args: self.arguments(&[], &ident!("New"))?,
                         }
                     } else {
@@ -2576,7 +2577,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
                 if let Some(ident) = self.ident()? {
                     // prefab
                     // TODO: arrange for this ident to end up in the prefab's annotation
-                    Term::Prefab(require!(self.prefab_ex(vec![(PathOp::Dot, ident)])))
+                    Term::Prefab(require!(self.prefab_ex(RelativePath::single(PathOp::Dot, ident))))
                 } else if let Some(args) = self.arguments(&[], &ident!("."))? {
                     // .() call
                     Term::SelfCall(args)
@@ -2584,7 +2585,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
                     // bare dot
                     dot_loc.column += 1;
                     self.annotate_precise(dot_loc..dot_loc, || {
-                        Annotation::IncompleteTypePath(Vec::new(), PathOp::Dot)
+                        Annotation::IncompleteTypePath(Default::default(), PathOp::Dot)
                     });
                     self.annotate(start, || Annotation::ReturnVal);
                     Term::Ident(ident!("."))

@@ -238,11 +238,7 @@ pub fn default_defines(defines: &mut DefineMap) {
 pub fn register_builtins(tree: &mut ObjectTreeBuilder) {
     fn path(path: &'static [&'static str]) -> Constant {
         Constant::Prefab(Box::new(super::constants::Pop {
-            path: path
-                .iter()
-                .copied()
-                .map(Ident::from_static)
-                .collect::<Box<[_]>>(),
+            path: path.iter().copied().map(Ident::from_static).collect(),
             vars: Default::default(),
         }))
     }

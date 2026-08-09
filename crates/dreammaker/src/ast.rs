@@ -885,18 +885,51 @@ impl<T> Spanned<T> {
 }
 
 /// An absolute tree path like `/ident/ident`.
-pub type AbsolutePath = Box<[Ident]>;
+#[derive(Default, Debug, Clone, PartialEq, Eq, Hash, GetSize)]
+pub struct AbsolutePath(Box<[Ident]>);
 
-pub fn treepath_from_str(str: &str) -> AbsolutePath {
-    str.split('/')
-        .filter(|elem| !elem.is_empty())
-        .map(Ident::from_nonstatic)
-        .collect::<AbsolutePath>()
+impl<'a> From<&'a str> for AbsolutePath {
+    fn from(value: &'a str) -> Self {
+        value
+            .split('/')
+            .filter(|elem| !elem.is_empty())
+            .map(Ident::from_nonstatic)
+            .collect::<AbsolutePath>()
+    }
 }
 
-pub struct FormatAbsolutePath<'a, T>(pub &'a [T]);
+impl FromIterator<Ident> for AbsolutePath {
+    fn from_iter<T: IntoIterator<Item = Ident>>(iter: T) -> Self {
+        Self(FromIterator::from_iter(iter))
+    }
+}
 
-impl<'a, T: fmt::Display> fmt::Display for FormatAbsolutePath<'a, T> {
+impl AbsolutePath {
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    pub fn as_slice(&self) -> &[Ident] {
+        &self.0
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = &Ident> {
+        self.0.iter()
+    }
+}
+
+impl fmt::Display for AbsolutePath {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        for each in self.0.iter() {
+            write!(f, "/{each}")?;
+        }
+        Ok(())
+    }
+}
+
+pub struct DisplayAbsolutePath<'a, T>(pub &'a [T]);
+
+impl<'a, T: fmt::Display> fmt::Display for DisplayAbsolutePath<'a, T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         for each in self.0.iter() {
             write!(f, "/{each}")?;
@@ -906,11 +939,51 @@ impl<'a, T: fmt::Display> fmt::Display for FormatAbsolutePath<'a, T> {
 }
 
 /// A series of identifiers separated by path operators.
-pub type RelativePath = Vec<(PathOp, Ident)>;
+#[derive(Default, Debug, Clone, PartialEq, Eq, Hash, GetSize)]
+pub struct RelativePath(Vec<(PathOp, Ident)>);
 
-pub struct FormatRelativePath<'a>(pub &'a [(PathOp, Ident)]);
+impl RelativePath {
+    pub fn single(op: PathOp, ident: Ident) -> RelativePath {
+        RelativePath(vec![(op, ident)])
+    }
 
-impl<'a> fmt::Display for FormatRelativePath<'a> {
+    pub fn nameof(&self) -> Option<&str> {
+        Some(self.0.last()?.1.as_str())
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    pub fn as_slice(&self) -> &[(PathOp, Ident)] {
+        &self.0
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = &(PathOp, Ident)> {
+        self.0.iter()
+    }
+
+    pub fn push(&mut self, value: (PathOp, Ident)) {
+        self.0.push(value);
+    }
+}
+
+impl fmt::Display for RelativePath {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        for each in self.0.iter() {
+            write!(f, "{}{}", each.0, each.1)?;
+        }
+        Ok(())
+    }
+}
+
+pub struct DisplayRelativePath<'a>(pub &'a [(PathOp, Ident)]);
+
+impl<'a> fmt::Display for DisplayRelativePath<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         for each in self.0.iter() {
             write!(f, "{}{}", each.0, each.1)?;
@@ -932,7 +1005,7 @@ pub struct Prefab {
 impl Prefab {
     fn nameof(&self) -> Option<&str> {
         if self.vars.is_empty() {
-            Some(&self.path.last()?.1)
+            self.path.nameof()
         } else {
             None
         }
@@ -1453,7 +1526,7 @@ impl VarTypeBuilder {
     pub fn build(self) -> VarType {
         VarType {
             flags: self.flags,
-            type_path: self.type_path.into_boxed_slice(),
+            type_path: AbsolutePath::from_iter(self.type_path),
             input_type: self.input_type.unwrap_or_default(),
         }
     }
@@ -1501,7 +1574,10 @@ impl VarSuffix {
             None
         } else {
             Some(Expression::from(Term::NewPrefab {
-                prefab: Box::new(Prefab::from(vec![(PathOp::Slash, ident!("list"))])),
+                prefab: Box::new(Prefab::from(RelativePath::single(
+                    PathOp::Slash,
+                    ident!("list"),
+                ))),
                 args: Some(args.into_boxed_slice()),
             }))
         }

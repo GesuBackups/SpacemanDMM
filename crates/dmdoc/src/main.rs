@@ -404,7 +404,7 @@ fn main2() -> Result<(), Box<dyn std::error::Error>> {
                     is_final: decl.var_type.flags.is_final(),
                     //is_private: decl.var_type.flags.is_private(),
                     //is_protected: decl.var_type.flags.is_protected(),
-                    path: &decl.var_type.type_path,
+                    path: decl.var_type.type_path.as_slice(),
                     input_type: decl.var_type.input_type,
                 });
                 parsed_type.vars.insert(
@@ -493,7 +493,7 @@ fn main2() -> Result<(), Box<dyn std::error::Error>> {
                             .iter()
                             .map(|p| Param {
                                 name: p.name.clone(),
-                                type_path: format_type_path(&p.var_type.type_path),
+                                type_path: p.var_type.type_path.to_string(),
                                 input_type: p.input_type,
                             })
                             .collect(),
@@ -1128,14 +1128,6 @@ fn is_visible(entry: &walkdir::DirEntry) -> bool {
         .to_str()
         .map(|s| !s.starts_with('.'))
         .unwrap_or(true)
-}
-
-fn format_type_path(vec: &[Ident]) -> String {
-    if vec.is_empty() {
-        String::new()
-    } else {
-        format!("/{}", vec.join("/"))
-    }
 }
 
 fn linkify_type<'a, I: Iterator<Item = &'a str>>(

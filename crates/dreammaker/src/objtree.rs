@@ -11,6 +11,7 @@ use get_size_derive::GetSize;
 use foldhash::fast::RandomState;
 use indexmap::IndexMap;
 
+use crate::ast::AbsolutePath;
 use crate::heap_size_of_index_map;
 
 use super::ast::{
@@ -546,7 +547,7 @@ impl<'o> NavigatePathResult<'o> {
         }
     }
 
-    pub fn to_path(self) -> Vec<Ident> {
+    pub fn to_path(self) -> AbsolutePath {
         let mut path: Vec<Ident> = self
             .ty()
             .path
@@ -562,7 +563,7 @@ impl<'o> NavigatePathResult<'o> {
                 path.push(Ident::from_nonstatic(proc.name()));
             },
         }
-        path
+        AbsolutePath::from_iter(path)
     }
 }
 

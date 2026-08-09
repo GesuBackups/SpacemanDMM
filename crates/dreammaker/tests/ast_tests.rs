@@ -105,7 +105,7 @@ var/global/bill = 1
                 panic!("Failed to constant evaluate :: proc operator")
             };
             if let Constant::Prefab(value) = constant {
-                let pop_list = FormatAbsolutePath(&value.path).to_string();
+                let pop_list = value.path.to_string();
                 assert_eq!(pop_list, "/datum/test/proc/reference")
             } else {
                 panic!(
