@@ -1745,7 +1745,7 @@ pub static VALID_FILTER_FLAGS: phf::Map<&'static str, (&str, bool, bool, &[&str]
 
 // ----------------------------------------------------------------------------
 // Guard against sizeof regression.
-const _: [(); 0 - !(std::mem::size_of::<Ident>() <= 16) as usize] = [];
-const _: [(); 0 - !(std::mem::size_of::<Statement>() <= 56) as usize] = [];
-const _: [(); 0 - !(std::mem::size_of::<Expression>() <= 32) as usize] = [];
-const _: [(); 0 - !(std::mem::size_of::<Term>() <= 40) as usize] = [];
+const _: () = assert!(std::mem::size_of::<Ident>() <= 16);
+const _: () = assert!(std::mem::size_of::<Statement>() <= 56);
+const _: () = assert!(std::mem::size_of::<Expression>() <= 32);
+const _: () = assert!(std::mem::size_of::<Term>() <= 40);
