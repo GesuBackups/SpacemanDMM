@@ -37,14 +37,7 @@ const DM_REFERENCE_BASE: &str = "https://www.byond.com/docs/ref/#";
 // ----------------------------------------------------------------------------
 // Driver
 
-fn main() {
-    if let Err(e) = main2() {
-        eprintln!("{e}");
-        std::process::exit(1);
-    }
-}
-
-fn main2() -> Result<(), Box<dyn std::error::Error>> {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     // command-line args
     let mut environment = None;
     let mut output_path = "dmdoc".to_owned();
