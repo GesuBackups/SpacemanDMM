@@ -453,14 +453,18 @@ fn parse_metadata(data: &str) -> io::Result<Metadata> {
                     frames_so_far += state.frames.count() * state.dirs.count();
                     metadata.states.push(state);
                 }
-                let unquoted = value[1..value.len() - 1].to_owned(); // TODO: unquote
-                assert!(!unquoted.contains('\\') && !unquoted.contains('"'));
+                let Some(name) = unquote(value) else {
+                    return Err(io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        format!("Malformed dmi state name line `{line}`"),
+                    ));
+                };
 
-                let count = duplicate_map.entry(unquoted.clone()).or_insert(0);
+                let count = duplicate_map.entry(name.clone()).or_insert(0);
 
                 let new_state = State {
                     offset: frames_so_far,
-                    name: unquoted,
+                    name,
                     loop_: 0,
                     duplicate_index: *count,
                     rewind: false,
@@ -527,12 +531,39 @@ fn parse_metadata(data: &str) -> io::Result<Metadata> {
             "rewind" => state.as_mut().unwrap().rewind = value.parse::<u8>().unwrap() != 0,
             "hotspot" => { /* TODO */ },
             "movement" => state.as_mut().unwrap().movement = value.parse::<u8>().unwrap() != 0,
-            _ => panic!(),
+            _ => {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    format!("Unknown dmi metadata line `{line}`"),
+                ));
+            },
         }
     }
     metadata.states.extend(state);
 
     Ok(metadata)
+}
+
+fn unquote(value: &str) -> Option<String> {
+    if !value.starts_with('"') || !value.ends_with('"') {
+        return None;
+    }
+    let value = &value[1..value.len() - 1];
+    if !value.contains('\\') && !value.contains('"') {
+        return Some(value.to_owned());
+    }
+    let mut result = String::with_capacity(value.len());
+    let mut iter = value.chars();
+    while let Some(ch) = iter.next() {
+        if ch == '\\' {
+            result.push(iter.next()?);
+        } else if ch == '"' {
+            return None;
+        } else {
+            result.push(ch);
+        }
+    }
+    Some(result)
 }
 
 #[cfg(test)]
