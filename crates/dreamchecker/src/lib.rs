@@ -2384,11 +2384,9 @@ impl<'o, 's> AnalyzeProc<'o, 's> {
             Term::Float(number) => {
                 Analysis::from_value(self.objtree, Constant::from(*number), type_hint)
             },
-            Term::String(text) => Analysis::from_value(
-                self.objtree,
-                Constant::String(text.clone()),
-                type_hint,
-            ),
+            Term::String(text) => {
+                Analysis::from_value(self.objtree, Constant::String(text.clone()), type_hint)
+            },
             Term::Resource(text) => Analysis::from_value(
                 self.objtree,
                 Constant::Resource(text.clone().into()),

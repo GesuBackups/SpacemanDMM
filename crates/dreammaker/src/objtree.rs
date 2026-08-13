@@ -1372,7 +1372,7 @@ impl ObjectTreeBuilder {
                 .copied()
                 .map(|param| Parameter {
                     var_type: Default::default(),
-                    name: Ident::from(param),
+                    name: Ident::from_static(param),
                     default: None,
                     input_type: None,
                     in_list: None,
