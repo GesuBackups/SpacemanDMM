@@ -20,6 +20,7 @@ edition = "2024"
 rust-version = "1.87"
 
 [workspace.dependencies]
+chrono = "0.4.38"
 git2 = { version = "0.21.0", default-features = false }
 
 [profile.dev]

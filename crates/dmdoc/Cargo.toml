@@ -18,5 +18,5 @@ foldhash = "0.2.0"
 walkdir = "2.5.0"
 
 [build-dependencies]
-chrono = "0.4.38"
+chrono.workspace = true
 git2.workspace = true
