@@ -80,7 +80,7 @@ impl<'a> fmt::Display for NameAndDefine<'a> {
 
         fmt.write_str("\n")?;
 
-        crate::pretty_print(fmt, self.1.subst.iter().cloned(), false)
+        crate::pretty_print(fmt, self.1.subst.iter(), false)
     }
 }
 

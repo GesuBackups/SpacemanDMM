@@ -359,6 +359,12 @@ impl fmt::Display for Token {
     }
 }
 
+impl AsRef<Token> for Token {
+    fn as_ref(&self) -> &Token {
+        self
+    }
+}
+
 /// Formatting helper to quote a string according to DM's rules.
 ///
 /// Assumes that escapes within the string have NOT been parsed

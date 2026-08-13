@@ -64,13 +64,14 @@ impl Context {
 pub fn pretty_print<W, I>(w: &mut W, input: I, show_ws: bool) -> std::fmt::Result
 where
     W: std::fmt::Write,
-    I: IntoIterator<Item = lexer::Token>,
+    I: IntoIterator,
+    I::Item: AsRef<lexer::Token>,
 {
     let mut indents = 0;
     let mut needs_newline = false;
-    let mut prev = None;
+    let mut prev: Option<I::Item> = None;
     for token in input {
-        match token {
+        match token.as_ref() {
             lexer::Token::Punct(lexer::Punctuation::LBrace) => {
                 indents += 1;
                 needs_newline = true;
@@ -103,13 +104,13 @@ where
                     }
                     write!(w, "{}", &SPACES[..spaces % SPACES.len()])?;
                     needs_newline = false;
-                } else if let Some(prev) = prev {
-                    if other.separate_from(&prev) {
+                } else if let Some(prev) = prev.as_ref() {
+                    if other.separate_from(prev.as_ref()) {
                         write!(w, " ")?;
                     }
                 }
                 write!(w, "{other}")?;
-                prev = Some(other);
+                prev = Some(token);
             },
         }
     }
