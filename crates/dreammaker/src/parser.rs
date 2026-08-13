@@ -466,7 +466,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
     // Basic setup
 
     // Call this to get a DMError in the event of an entry point returning None
-    fn describe_parse_error(&mut self) -> DMError {
+    fn parse_error(&mut self) -> DMError {
         let expected = self.expected.join(", ");
         if self.eof {
             let mut error = self.error(format!("got EOF, expected one of: {expected}"));
@@ -492,14 +492,10 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
         }
     }
 
-    fn parse_error<T>(&mut self) -> Result<T, DMError> {
-        Err(self.describe_parse_error())
-    }
-
     fn require<T>(&mut self, t: Result<Option<T>, DMError>) -> Result<T, DMError> {
         match t {
             Ok(Some(v)) => Ok(v),
-            Ok(None) => self.parse_error(),
+            Ok(None) => Err(self.parse_error()),
             Err(e) => Err(e),
         }
     }
@@ -1326,7 +1322,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
         let name = match path.pop() {
             Some(name) => name,
             None => {
-                self.describe_parse_error().register(self.context);
+                self.parse_error().register(self.context);
                 crate::ast::Ident::default()
             },
         };
@@ -1840,7 +1836,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
             } else if let Some(()) = self.exact(Token::Punct(Punctuation::In))? {
                 SettingMode::In
             } else {
-                return self.parse_error();
+                return Err(self.parse_error());
             };
             let value = require!(self.expression());
             require!(self.statement_terminator());
@@ -2263,7 +2259,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
                 take_match!(self {
                     Token::Punct(Punctuation::Colon) |
                     Token::Punct(Punctuation::CloseColon) => {},
-                } else return self.parse_error());
+                } else return Err(self.parse_error()));
                 // Read the else branch.
                 let else_ = match self.expression_ex(Some(Strength::Conditional), true)? {
                     Some(else_) => else_,
@@ -2600,7 +2596,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
                     }
                 } else {
                     // Go away
-                    return self.parse_error()
+                    return Err(self.parse_error());
                 }
             },
 
@@ -2640,7 +2636,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
                             parts.push((expr, end.into()));
                             break;
                         },
-                    } else return self.parse_error());
+                    } else return Err(self.parse_error()));
                 }
                 Term::InterpString(begin.into(), parts.into())
             },
@@ -2702,7 +2698,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
                     Annotation::ScopedMissingIdent(belongs_to.clone())
                 });
                 // register the parse error, but keep going
-                self.context.register_error(self.describe_parse_error());
+                self.context.register_error(self.parse_error());
                 Ident::default()
             },
         };
@@ -2760,7 +2756,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
                     Annotation::ScopedMissingIdent(belongs_to.clone())
                 });
                 // register the parse error, but keep going
-                self.context.register_error(self.describe_parse_error());
+                self.context.register_error(self.parse_error());
                 Ident::default()
             },
         };
@@ -2841,14 +2837,14 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
                 } else if let Some(empty) = allow_empty.clone() {
                     elems.push(empty);
                 } else {
-                    return self.parse_error();
+                    return Err(self.parse_error());
                 }
             } else if !comma_legal {
                 let v = f(self);
                 elems.push(self.require(v)?);
                 comma_legal = true;
             } else {
-                return self.parse_error();
+                return Err(self.parse_error());
             }
         }
     }
