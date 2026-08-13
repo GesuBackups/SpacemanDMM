@@ -3,7 +3,6 @@
 
 extern crate indexmap;
 extern crate interval_tree;
-extern crate lodepng;
 #[macro_use]
 extern crate bitflags;
 extern crate ordered_float;
@@ -29,7 +28,6 @@ pub mod ast;
 mod builtins;
 pub mod config;
 pub mod constants;
-pub mod dmi;
 pub mod docs;
 pub mod indents;
 pub mod lexer;

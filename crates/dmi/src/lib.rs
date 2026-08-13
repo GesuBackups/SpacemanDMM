@@ -260,7 +260,6 @@ pub enum Frames {
 impl Metadata {
     /// Read the bitmap and DMI metadata from a given file in a single pass.
     pub fn from_file(path: &Path) -> io::Result<(lodepng::Bitmap<lodepng::RGBA>, Metadata)> {
-        let path = &crate::fix_case(path);
         Self::from_bytes(&std::fs::read(path)?)
     }
 
