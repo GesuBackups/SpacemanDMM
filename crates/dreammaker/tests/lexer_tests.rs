@@ -69,7 +69,7 @@ fn empty_block_comment() {
 
 #[test]
 fn raw_strings() {
-    let desired = Token::String("content".to_owned());
+    let desired = Token::String("content".into());
     let stuff = lex(r#"
 @"content"
 @xcontentx
@@ -94,21 +94,21 @@ fn heredoc_with_quotes() {
     assert_eq!(
         lex(r#"{"foo"bar"}"#),
         vec![
-            Token::String(r#"foo"bar"#.to_owned()),
+            Token::String(r#"foo"bar"#.into()),
             Token::Punct(Punctuation::Newline),
         ]
     );
     assert_eq!(
         lex(r#"{"foo""bar"}"#),
         vec![
-            Token::String(r#"foo""bar"#.to_owned()),
+            Token::String(r#"foo""bar"#.into()),
             Token::Punct(Punctuation::Newline),
         ]
     );
     assert_eq!(
         lex(r#"{"foo"""bar"}"#),
         vec![
-            Token::String(r#"foo"""bar"#.to_owned()),
+            Token::String(r#"foo"""bar"#.into()),
             Token::Punct(Punctuation::Newline),
         ]
     );
@@ -117,28 +117,28 @@ fn heredoc_with_quotes() {
     assert_eq!(
         lex(r#"{""}"#),
         vec![
-            Token::String(r#""#.to_owned()),
+            Token::String(r#""#.into()),
             Token::Punct(Punctuation::Newline),
         ]
     );
     assert_eq!(
         lex(r#"{"""}"#),
         vec![
-            Token::String(r#"""#.to_owned()),
+            Token::String(r#"""#.into()),
             Token::Punct(Punctuation::Newline),
         ]
     );
     assert_eq!(
         lex(r#"{""""}"#),
         vec![
-            Token::String(r#""""#.to_owned()),
+            Token::String(r#""""#.into()),
             Token::Punct(Punctuation::Newline),
         ]
     );
     assert_eq!(
         lex(r#"{"""""}"#),
         vec![
-            Token::String(r#"""""#.to_owned()),
+            Token::String(r#"""""#.into()),
             Token::Punct(Punctuation::Newline),
         ]
     );

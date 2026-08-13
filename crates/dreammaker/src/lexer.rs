@@ -255,13 +255,13 @@ pub enum Token {
     /// A raw identifier or keyword. Indicates whether it is followed by whitespace.
     Ident(Ident, bool),
     /// A string literal with no interpolation.
-    String(String),
+    String(Ident),
     /// The opening portion of an interpolated string. Followed by an expression.
-    InterpStringBegin(String),
+    InterpStringBegin(Ident),
     /// An internal portion of an interpolated string. Preceded and followed by an expression.
-    InterpStringPart(String),
+    InterpStringPart(Ident),
     /// The closing portion of an interpolated string. Preceded by an expression.
-    InterpStringEnd(String),
+    InterpStringEnd(Ident),
     /// A resource literal, referring to a filename.
     Resource(String),
     /// An integer literal.
@@ -273,6 +273,11 @@ pub enum Token {
 }
 
 impl Token {
+    #[inline]
+    pub fn empty_string() -> Self {
+        Token::String(Default::default())
+    }
+
     /// Check whether this token should be separated from the previous one when
     /// pretty-printing.
     pub fn separate_from(&self, prev: &Token) -> bool {
@@ -1055,7 +1060,7 @@ impl<'ctx> Lexer<'ctx> {
             }
         }
 
-        let string = from_utf8_or_latin1(buf);
+        let string = Ident::from(from_utf8_or_latin1(buf));
         match (interp_opened, interp_closed) {
             (true, true) => Token::InterpStringPart(string),
             (true, false) => Token::InterpStringBegin(string),
@@ -1081,7 +1086,7 @@ impl<'ctx> Lexer<'ctx> {
                 break;
             }
         }
-        Token::String(from_utf8_or_latin1(buf))
+        Token::String(Ident::from(from_utf8_or_latin1(buf)))
     }
 
     fn read_raw_string(&mut self) -> Token {
@@ -1090,7 +1095,7 @@ impl<'ctx> Lexer<'ctx> {
             // @<LF> - error
             Some(b'\n') | None => {
                 self.error("unterminated raw string").register(self.context);
-                Token::String(String::new())
+                Token::empty_string()
             },
             // @(<terminator string>)<string><terminator string> - no LF in contents
             Some(b'(') => {
@@ -1103,14 +1108,14 @@ impl<'ctx> Lexer<'ctx> {
                         None => {
                             self.error("unterminated raw string terminator")
                                 .register(self.context);
-                            return Token::String(String::new());
+                            return Token::empty_string();
                         },
                     }
                 }
                 if terminator.is_empty() {
                     self.error("empty raw string terminator")
                         .register(self.context);
-                    return Token::String(String::new());
+                    return Token::empty_string();
                 }
                 self.read_raw_string_inner(&terminator)
             },

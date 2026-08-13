@@ -1144,11 +1144,11 @@ impl<'ctx> Preprocessor<'ctx> {
                     self.annotate_macro(ident, Location::BUILTINS, Some(Rc::new(doc_collection)));
                     for include in self.include_stack.stack.iter().rev() {
                         if let Include::File { ref path, .. } = *include {
-                            self.push_output(Token::String(path.display().to_string()));
+                            self.push_output(Token::String(path.display().to_string().into()));
                             return Ok(());
                         }
                     }
-                    self.push_output(Token::String(String::new()));
+                    self.push_output(Token::empty_string());
                     return Ok(());
                 } else if ident == "__LINE__" {
                     let mut doc_collection = DocCollection::default();
@@ -1352,7 +1352,7 @@ impl<'ctx> Preprocessor<'ctx> {
                                                         _e.unwrap();
                                                     }
                                                 }
-                                                expansion.push_back(Token::String(string));
+                                                expansion.push_back(Token::String(string.into()));
                                             },
                                             None => {
                                                 return Err(DMError::new(

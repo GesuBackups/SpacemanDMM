@@ -1172,7 +1172,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
             } else {
                 Ok(Some("operator[]"))
             }
-        } else if self.exact(Token::String("".to_string()))?.is_some() {
+        } else if self.exact(Token::empty_string())?.is_some() {
             Ok(Some("operator\"\""))
         } else {
             Ok(None)

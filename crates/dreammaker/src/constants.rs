@@ -922,7 +922,7 @@ impl<'a> ConstantFolder<'a> {
                 },
                 _ => self.ident(ident, false)?,
             },
-            Term::String(v) => Constant::String(Ident::from_nonstatic(v)),
+            Term::String(v) => Constant::String(v.clone()),
             Term::Resource(v) => Constant::Resource(Ident::from_nonstatic(v)),
             Term::Int(v) => Constant::Float(*v as f32),
             Term::Float(v) => Constant::Float(*v),

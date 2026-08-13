@@ -722,12 +722,22 @@ impl fmt::Display for VarTypeFlags {
 
 // Ident2 is an opaque type which promises a limited interface.
 // Its implementation can be modified as Cow/interning strategy changes.
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Default, Hash)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Ident {
     inner: Cow<'static, str>,
 }
 
+impl Default for Ident {
+    fn default() -> Self {
+        Ident::EMPTY
+    }
+}
+
 impl Ident {
+    const EMPTY: Ident = Ident {
+        inner: Cow::const_str(""),
+    };
+
     pub fn from_nonstatic(str: &str) -> Self {
         if let Some(i) = intern_static(str) {
             Ident {
@@ -1219,7 +1229,7 @@ pub enum Term {
     /// An identifier.
     Ident(Ident),
     /// A string literal.
-    String(String),
+    String(Ident),
     /// A resource literal.
     Resource(String),
     /// An `as()` call, with an input type. Undocumented.
@@ -1240,7 +1250,7 @@ pub enum Term {
     /// A prefab literal (path + vars).
     Prefab(Box<Prefab>),
     /// An interpolated string, alternating string/expr/string/expr.
-    InterpString(Ident, Box<[(Option<Expression>, Box<str>)]>),
+    InterpString(Ident, Box<[(Option<Expression>, Ident)]>),
 
     // Function calls with recursive contents ---------------------------------
     /// An unscoped function call.

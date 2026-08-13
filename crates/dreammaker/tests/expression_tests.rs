@@ -137,10 +137,8 @@ fn call_ext() {
         parse_expr("call_ext(\"cat.dll\", \"meow\")(1, 2, 3)"),
         Expression::Base {
             term: Box::new(Spanned::invalid(Term::ExternalCall {
-                library: Some(Box::new(Expression::from(Term::String(
-                    "cat.dll".to_owned()
-                )))),
-                function: Box::new(Expression::from(Term::String("meow".to_owned()))),
+                library: Some(Box::new(Expression::from(Term::String("cat.dll".into())))),
+                function: Box::new(Expression::from(Term::String("meow".into()))),
                 args: Box::new([
                     Expression::Base {
                         term: Box::new(Spanned::invalid(Term::Int(1))),
