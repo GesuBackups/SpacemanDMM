@@ -750,13 +750,28 @@ impl Ident {
         }
     }
 
+    pub fn from_nonstatic_cow(str: std::borrow::Cow<str>) -> Self {
+        if let Some(i) = intern_static(&str) {
+            Ident {
+                inner: Cow::borrowed(i),
+            }
+        } else {
+            Ident {
+                inner: Cow::owned(str.into_owned()),
+            }
+        }
+    }
+
+    #[inline]
     pub(crate) fn from_static(str: &'static str) -> Self {
         debug_assert!(
             intern_static(str).is_some(),
             "Missing from STATIC_IDENTS: {:?}",
             str
         );
-        Ident { inner: str.into() }
+        Ident {
+            inner: Cow::const_str(str),
+        }
     }
 
     pub fn as_str(&self) -> &str {
@@ -827,6 +842,22 @@ impl From<String> for Ident {
             Ident {
                 inner: Cow::owned(v),
             }
+        }
+    }
+}
+
+impl From<std::borrow::Cow<'static, str>> for Ident {
+    fn from(value: std::borrow::Cow<'static, str>) -> Self {
+        match (intern_static(&value), value) {
+            (Some(i), _) => Ident {
+                inner: Cow::borrowed(i),
+            },
+            (None, std::borrow::Cow::Borrowed(b)) => Ident {
+                inner: Cow::borrowed(b),
+            },
+            (None, std::borrow::Cow::Owned(o)) => Ident {
+                inner: Cow::owned(o),
+            },
         }
     }
 }

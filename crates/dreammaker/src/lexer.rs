@@ -979,7 +979,8 @@ impl<'ctx> Lexer<'ctx> {
             }
         }
         let ident = &self.input.inner[start..end];
-        (from_utf8_or_latin1_borrowed(ident).into_owned().into(), ws)
+        let ident = Ident::from_nonstatic_cow(from_utf8_or_latin1_borrowed(ident));
+        (ident, ws)
     }
 
     fn read_resource(&mut self) -> String {
