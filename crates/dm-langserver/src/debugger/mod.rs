@@ -106,10 +106,9 @@ pub fn debugger_main<I: Iterator<Item = String>>(mut args: I) {
         .expect("did not detect a .dme");
     let mut ctx = dm::Context::default();
     ctx.autodetect_config(&environment);
-    let mut pp = dm::preprocessor::Preprocessor::new(&ctx, environment).unwrap();
+    let mut pp = dm::Preprocessor::new(&ctx, environment).unwrap();
     let objtree = {
-        let mut parser =
-            dm::parser::Parser::new(&ctx, dm::indents::IndentProcessor::new(&ctx, &mut pp));
+        let mut parser = dm::Parser::new(&ctx, dm::IndentProcessor::new(&ctx, &mut pp));
         parser.enable_procs();
         Arc::new(parser.parse_object_tree())
     };
@@ -1783,9 +1782,8 @@ struct StddefDmInfo {
 impl StddefDmInfo {
     fn new(text: String) -> StddefDmInfo {
         let context = dm::Context::default();
-        let pp = dm::preprocessor::Preprocessor::from_buffer(&context, "stddef.dm".into(), &text);
-        let parser =
-            dm::parser::Parser::new(&context, dm::indents::IndentProcessor::new(&context, pp));
+        let pp = dm::Preprocessor::from_buffer(&context, "stddef.dm".into(), &text);
+        let parser = dm::Parser::new(&context, dm::IndentProcessor::new(&context, pp));
         let objtree = parser.parse_object_tree_without_builtins();
         StddefDmInfo { text, objtree }
     }

@@ -542,7 +542,7 @@ impl Engine {
         // Set up the preprocessor.
         self.context.reset_io_time();
         self.context.autodetect_config(&environment);
-        let mut pp = match dm::preprocessor::Preprocessor::new(&self.context, environment.clone()) {
+        let mut pp = match dm::Preprocessor::new(&self.context, environment.clone()) {
             Ok(pp) => pp,
             Err(err) => {
                 self.issue_notification::<lsp_types::notification::PublishDiagnostics>(
@@ -573,9 +573,9 @@ impl Engine {
         // Parse the environment.
         let fatal_errored;
         {
-            let mut parser = dm::parser::Parser::new(
+            let mut parser = dm::Parser::new(
                 &self.context,
-                dm::indents::IndentProcessor::new(&self.context, &mut pp),
+                dm::IndentProcessor::new(&self.context, &mut pp),
             );
             parser.enable_procs();
             let (fatal_errored_2, objtree) = parser.parse_object_tree_2();
@@ -722,9 +722,8 @@ impl Engine {
                     preprocessor.enable_annotations();
                     let mut annotations = AnnotationTree::default();
                     {
-                        let indent =
-                            dm::indents::IndentProcessor::new(&self.context, &mut preprocessor);
-                        let parser = dm::parser::Parser::new(&self.context, indent);
+                        let indent = dm::IndentProcessor::new(&self.context, &mut preprocessor);
+                        let parser = dm::Parser::new(&self.context, indent);
                         parser.parse_annotations_only(&mut annotations);
                     }
                     annotations.merge(preprocessor.take_annotations().unwrap());
@@ -740,7 +739,7 @@ impl Engine {
                         .get_contents(url)
                         .map_err(invalid_request)?
                         .into_owned();
-                    let mut pp = dm::preprocessor::Preprocessor::from_buffer(
+                    let mut pp = dm::Preprocessor::from_buffer(
                         &self.context,
                         filename.clone().into(),
                         contents,
@@ -757,8 +756,8 @@ impl Engine {
                     pp.enable_annotations();
                     let mut annotations = AnnotationTree::default();
                     {
-                        let indent = dm::indents::IndentProcessor::new(&self.context, &mut pp);
-                        let mut parser = dm::parser::Parser::new(&self.context, indent);
+                        let indent = dm::IndentProcessor::new(&self.context, &mut pp);
+                        let mut parser = dm::Parser::new(&self.context, indent);
                         parser.annotate_to(&mut annotations);
                         // Every time anyone types anything the object tree is replaced.
                         // This is probably really inefficient, but it will do until

@@ -88,33 +88,19 @@ macro_rules! take_match {
 // ----------------------------------------------------------------------------
 // Convenience functions
 
-/// Parse a token stream, in the form emitted by the indent processor, into
-/// an object tree.
-///
-/// Compilation failures will return a best-effort parse, and diagnostics will
-/// be registered with the provided `Context`.
-pub fn parse<I>(context: &Context, iter: I) -> ObjectTree
-where
-    I: IntoIterator<Item = LocatedToken>,
-{
-    Parser::new(context, iter).parse_object_tree()
-}
-
-/// Parse a token stream into an expression.
-///
-/// Fatal errors will be directly returned and miscellaneous diagnostics will
-/// be registered with the provided `Context`.
-pub fn parse_expression<I>(
-    context: &Context,
-    location: Location,
-    iter: I,
-) -> Result<Expression, DMError>
-where
-    I: IntoIterator<Item = LocatedToken>,
-{
-    let mut parser = Parser::new(context, iter);
-    parser.location = location;
-    Ok(require!(parser.expression()))
+impl Context {
+    /// Parse a token stream into an expression.
+    ///
+    /// Fatal errors will be directly returned and miscellaneous diagnostics will
+    /// be registered with this context.
+    pub fn parse_expression<I>(&self, location: Location, iter: I) -> Result<Expression, DMError>
+    where
+        I: IntoIterator<Item = LocatedToken>,
+    {
+        let mut parser = Parser::new(self, iter);
+        parser.location = location;
+        Ok(require!(parser.expression()))
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -336,8 +322,10 @@ enum LoopContext {
 
 /// A single-lookahead, recursive-descent DM parser.
 ///
-/// Results are accumulated into an inner `ObjectTree`. To parse an entire
-/// environment, use the `parse` or `parse_environment` functions.
+/// Results are accumulated into an inner [ObjectTree].
+/// To parse an entire environment, use [Context::parse_environment].
+///
+/// To parse an expression, use [Context::parse_expression].
 pub struct Parser<'ctx, 'an, 'inp> {
     context: &'ctx Context,
     annotations: Option<&'an mut AnnotationTree>,

@@ -1,11 +1,7 @@
 extern crate dreammaker as dm;
 
-use dm::FileId;
-use dm::Location;
-use dm::annotation::*;
-use dm::indents::IndentProcessor;
-use dm::lexer::*;
-use dm::parser::Parser;
+use dm::annotation::AnnotationTree;
+use dm::{FileId, IndentProcessor, Lexer, Location, Parser};
 
 #[test]
 fn annotation_basic() {

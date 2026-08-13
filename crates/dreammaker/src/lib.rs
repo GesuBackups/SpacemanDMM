@@ -15,7 +15,6 @@ use std::borrow::Cow;
 use std::path::Path;
 
 mod error;
-pub use error::*;
 use get_size::GetSize;
 
 use foldhash::fast::RandomState;
@@ -29,26 +28,29 @@ mod builtins;
 pub mod config;
 pub mod constants;
 pub mod docs;
-pub mod indents;
+mod indents;
 pub mod lexer;
 pub mod objtree;
-pub mod parser;
+mod parser;
 pub mod preprocessor;
+
+pub use error::*;
+pub use indents::IndentProcessor;
+pub use lexer::Lexer;
+pub use parser::Parser;
+pub use preprocessor::Preprocessor;
 
 impl Context {
     /// Run the parsing suite on a given `.dme` file, producing an object tree.
     ///
-    /// Will only return failure on an `io::Error`. Compilation failures will
+    /// Will only return failure on a [std::io::Error]. Compilation failures will
     /// return a best-effort parse. Call `print_all_errors` to pretty-print
     /// errors to standard error.
     pub fn parse_environment(&self, dme: &Path) -> Result<objtree::ObjectTree, DMError> {
-        Ok(parser::parse(
-            self,
-            indents::IndentProcessor::new(
-                self,
-                preprocessor::Preprocessor::new(self, dme.to_owned())?,
-            ),
-        ))
+        let pp = Preprocessor::new(self, dme.to_owned())?;
+        let ip = IndentProcessor::new(self, pp);
+        let p = Parser::new(self, ip);
+        Ok(p.parse_object_tree())
     }
 }
 

@@ -5,15 +5,15 @@ use core::panic;
 use dm::ast::*;
 use dm::constants::*;
 use dm::objtree::ObjectTree;
-use dm::preprocessor::Preprocessor;
+use dm::Preprocessor;
 use dm::*;
 
 fn with_code<F: FnOnce(Context, ObjectTree)>(code: &'static str, f: F) {
     let context = Context::default();
     let path = std::path::PathBuf::from(r"test.dm");
     let pp = Preprocessor::from_buffer(&context, path, code.trim());
-    let indents = indents::IndentProcessor::new(&context, pp);
-    let mut parser = parser::Parser::new(&context, indents);
+    let indents = IndentProcessor::new(&context, pp);
+    let mut parser = Parser::new(&context, indents);
     parser.enable_procs();
     let _tree = parser.parse_object_tree();
 

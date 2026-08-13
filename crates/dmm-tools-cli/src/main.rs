@@ -71,15 +71,15 @@ impl Context {
         }
 
         self.dm_context.autodetect_config(&environment);
-        let pp = match dm::preprocessor::Preprocessor::new(&self.dm_context, environment) {
+        let pp = match dm::Preprocessor::new(&self.dm_context, environment) {
             Ok(pp) => pp,
             Err(e) => {
                 eprintln!("i/o error opening environment:\n{e}");
                 std::process::exit(1);
             },
         };
-        let indents = dm::indents::IndentProcessor::new(&self.dm_context, pp);
-        let parser = dm::parser::Parser::new(&self.dm_context, indents);
+        let indents = dm::IndentProcessor::new(&self.dm_context, pp);
+        let parser = dm::Parser::new(&self.dm_context, indents);
         self.objtree = parser.parse_object_tree();
     }
 }

@@ -642,7 +642,9 @@ impl<'ctx> Preprocessor<'ctx> {
             return Ok(false);
         }
 
-        let expr = crate::parser::parse_expression(self.context, start, self.output.drain(..))?;
+        let expr = self
+            .context
+            .parse_expression(start, self.output.drain(..))?;
         Ok(crate::constants::preprocessor_evaluate(
             start,
             &expr,

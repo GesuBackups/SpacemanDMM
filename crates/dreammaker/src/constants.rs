@@ -442,7 +442,7 @@ pub fn evaluate_str(location: Location, input: &[u8]) -> Result<Constant, DMErro
 
     let ctx = Context::default();
     let mut lexer = Lexer::from_input(&ctx, LocationTracker::from_location(location, input.into()));
-    let expr = crate::parser::parse_expression(&ctx, location, &mut lexer)?;
+    let expr = ctx.parse_expression(location, &mut lexer)?;
     let leftover = lexer.remaining();
     if !leftover.is_empty() {
         return Err(DMError::new(
