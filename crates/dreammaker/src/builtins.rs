@@ -24,7 +24,7 @@ pub fn default_defines(defines: &mut DefineMap) {
         ident!("EXCEPTION"),
         (
             location,
-            Define::Function {
+            Define {
                 params: vec![ident!("value")],
                 variadic: false,
                 subst: vec![
@@ -45,7 +45,7 @@ pub fn default_defines(defines: &mut DefineMap) {
         ident!("ASSERT"),
         (
             location,
-            Define::Function {
+            Define {
                 params: vec![ident!("expression")],
                 variadic: false,
                 subst: vec![
@@ -80,13 +80,7 @@ pub fn default_defines(defines: &mut DefineMap) {
         for &(name, ref value) in values {
             let previous = defines.insert(
                 crate::ast::Ident::from_static(name),
-                (
-                    Location::BUILTINS,
-                    Define::Constant {
-                        subst: value.to_vec(),
-                        docs: Default::default(),
-                    },
-                ),
+                (Location::BUILTINS, Define::constant(value.to_vec())),
             );
             assert!(previous.is_none(), "redefined: {}", name);
         }

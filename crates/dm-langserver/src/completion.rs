@@ -456,7 +456,7 @@ impl Engine {
                         label: name.as_str().to_owned(),
                         kind: Some(CompletionItemKind::CONSTANT),
                         detail: Some(define.display_with_name(name).to_string()),
-                        documentation: item_documentation(define.docs()),
+                        documentation: item_documentation(&define.docs),
                         ..Default::default()
                     });
                 }

@@ -1477,7 +1477,7 @@ impl Engine {
                         kind: SymbolKind::CONSTANT,
                         location: self.convert_location(
                             range.start,
-                            define.docs(),
+                            &define.docs,
                             &["/DM/preprocessor/", name],
                         )?,
                         container_name: None,

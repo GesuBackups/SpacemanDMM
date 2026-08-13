@@ -22,37 +22,37 @@ const MAX_RECURSION_DEPTH: usize = 32;
 // ----------------------------------------------------------------------------
 // Macro representation and predefined macros
 
+/// The parameters and output of a macro.
 #[derive(Debug, Clone, PartialEq)]
-pub enum Define {
-    Constant {
-        subst: Vec<Token>,
-        docs: Rc<DocCollection>,
-    },
-    Function {
-        params: Vec<Ident>,
-        subst: Vec<Token>,
-        variadic: bool,
-        docs: Rc<DocCollection>,
-    },
+pub struct Define {
+    pub docs: Rc<DocCollection>,
+    pub params: Vec<Ident>,
+    pub variadic: bool,
+    pub subst: Vec<Token>,
 }
 
 impl Define {
-    /// Get the documentation associated with this define.
-    pub fn docs(&self) -> &DocCollection {
-        match self {
-            Define::Constant { docs, .. } => docs,
-            Define::Function { docs, .. } => docs,
+    /// Construct a basic constant macro.
+    pub fn constant(subst: Vec<Token>) -> Self {
+        Define {
+            docs: Default::default(),
+            params: Default::default(),
+            variadic: false,
+            subst,
         }
     }
 
-    /// Get this define's substitution. May be empty.
-    pub fn substitution(&self) -> &[Token] {
-        match self {
-            Define::Constant { subst, .. } => subst,
-            Define::Function { subst, .. } => subst,
+    /// Construct a basic function macro.
+    pub fn function(params: Vec<Ident>, subst: Vec<Token>) -> Self {
+        Define {
+            docs: Default::default(),
+            params,
+            variadic: false,
+            subst,
         }
     }
 
+    /// Pretty-print the macro's name, parameters if applicable, and substitution.
     pub fn display_with_name<'a>(&'a self, name: &'a str) -> impl fmt::Display + 'a {
         NameAndDefine(name, self)
     }
@@ -64,21 +64,23 @@ impl<'a> fmt::Display for NameAndDefine<'a> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         write!(fmt, "#define {}", self.0)?;
 
-        if let Define::Function { params, .. } = self.1 {
+        if !self.1.params.is_empty() {
             fmt.write_str("(")?;
-            for (i, name) in params.iter().enumerate() {
+            for (i, name) in self.1.params.iter().enumerate() {
                 if i > 0 {
                     fmt.write_str(", ")?;
                 }
                 fmt.write_str(name)?;
+            }
+            if self.1.variadic {
+                fmt.write_str("...")?;
             }
             fmt.write_str(")")?;
         }
 
         fmt.write_str("\n")?;
 
-        let subst = self.1.substitution();
-        crate::pretty_print(fmt, subst.iter().cloned(), false)
+        crate::pretty_print(fmt, self.1.subst.iter().cloned(), false)
     }
 }
 
@@ -1002,18 +1004,11 @@ impl<'ctx> Preprocessor<'ctx> {
                                 }
                             }
                         }
-                        let define = if params.is_empty() {
-                            Define::Constant {
-                                subst,
-                                docs: Rc::new(docs),
-                            }
-                        } else {
-                            Define::Function {
-                                params,
-                                subst,
-                                variadic,
-                                docs: Rc::new(docs),
-                            }
+                        let define = Define {
+                            docs: Rc::new(docs),
+                            params,
+                            variadic,
+                            subst,
                         };
                         // DEBUG can only be defined in the root .dme file
                         if define_name != "DEBUG" || self.in_environment() {
@@ -1190,7 +1185,15 @@ impl<'ctx> Preprocessor<'ctx> {
                 }
 
                 match expansion {
-                    Some((location, Define::Constant { subst, docs })) => {
+                    Some((
+                        location,
+                        Define {
+                            subst,
+                            docs,
+                            ref params,
+                            ..
+                        },
+                    )) if params.is_empty() => {
                         self.annotate_macro(ident, location, Some(docs));
                         self.include_stack.stack.push(Include::Expansion {
                             //name: ident.to_owned(),
@@ -1201,7 +1204,7 @@ impl<'ctx> Preprocessor<'ctx> {
                     },
                     Some((
                         location,
-                        Define::Function {
+                        Define {
                             ref params,
                             ref subst,
                             variadic,

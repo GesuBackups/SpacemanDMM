@@ -172,7 +172,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut macro_to_module_map = BTreeMap::new();
     for (range, (name, define)) in define_history.iter() {
         macro_exists.insert(name.as_str());
-        if !define.docs().is_empty() {
+        if !define.docs.is_empty() {
             let mod_path = module_path(&context.file_path(range.start.file));
             modules_which_exist.insert(mod_path.clone());
             macro_to_module_map.insert(name.as_str(), mod_path);
@@ -186,28 +186,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // if macros have docs, that counts as a module too
     for (range, (name, define)) in define_history.iter() {
-        let (docs, has_params, params, is_variadic);
-        match define {
-            dm::preprocessor::Define::Constant { docs: dc, .. } => {
-                docs = dc;
-                has_params = false;
-                params = &[][..];
-                is_variadic = false;
-            },
-            dm::preprocessor::Define::Function {
-                docs: dc,
-                params: macro_params,
-                variadic,
-                ..
-            } => {
-                docs = dc;
-                has_params = true;
-                params = macro_params;
-                is_variadic = *variadic;
-            },
-        }
         macros_all += 1;
-        if docs.is_empty() {
+        if define.docs.is_empty() {
             continue;
         }
         error_entity_put(format!("#define {name}"));
@@ -223,7 +203,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 &types_with_docs,
             )
         };
-        let docs = DocBlock::parse(&docs.text(), Some(broken_link_callback));
+        let docs = DocBlock::parse(&define.docs.text(), Some(broken_link_callback));
         let module = module_entry(&mut modules1, &context.file_path(range.start.file));
         module.items_wip.push((
             range.start.line,
@@ -236,9 +216,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             name,
             Define {
                 docs,
-                has_params,
-                params,
-                is_variadic,
+                has_params: !define.params.is_empty(),
+                params: &define.params[..],
+                is_variadic: define.variadic,
                 line: range.start.line,
             },
         );
