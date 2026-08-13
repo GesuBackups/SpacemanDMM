@@ -9,7 +9,7 @@ use interval_tree::{IntervalTree, RangeInclusive, RangePairIter, range};
 use super::Location;
 use super::ast::*;
 
-pub type Iter<'a> = RangePairIter<'a, Location, Annotation>;
+type Iter<'a> = RangePairIter<'a, Location, Annotation>;
 
 #[derive(Debug)]
 pub enum Annotation {

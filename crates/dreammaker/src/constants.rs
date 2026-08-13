@@ -18,7 +18,7 @@ use super::objtree::*;
 use super::preprocessor::DefineMap;
 use super::{Context, DMError, HasLocation, Location, Severity};
 
-pub type Arguments = [(Constant, Option<Constant>)];
+pub type Arguments = Box<[(Constant, Option<Constant>)]>;
 
 /// An absolute typepath and optional variables.
 ///
@@ -83,12 +83,12 @@ pub enum Constant {
         /// The type to be instantiated.
         type_: Option<Box<Pop>>,
         /// The list of arugments to pass to the `New()` proc.
-        args: Option<Box<Arguments>>,
+        args: Option<Arguments>,
     },
     /// A `list` literal. Elements have optional associations.
-    List(Box<Arguments>),
+    List(Arguments),
     /// A call to a constant type constructor.
-    Call(ConstFn, Box<Arguments>),
+    Call(ConstFn, Arguments),
     /// A prefab literal.
     Prefab(Box<Pop>),
     /// A string literal.
@@ -172,9 +172,6 @@ pub enum ConstFn {
     /// The `vector()` type constructor.
     Vector,
 }
-
-/// A constant-evaluation error (usually type mismatch).
-pub struct EvalError;
 
 impl Constant {
     // ------------------------------------------------------------------------
@@ -289,10 +286,10 @@ impl Constant {
         None
     }
 
-    pub fn negate(&self) -> Result<Constant, EvalError> {
-        Ok(match *self {
+    pub fn negate(&self) -> Option<Constant> {
+        Some(match *self {
             Constant::Float(i) => Constant::Float(-i),
-            _ => return Err(EvalError),
+            _ => return None,
         })
     }
 }
@@ -462,7 +459,7 @@ pub fn evaluate_str(location: Location, input: &[u8]) -> Result<Constant, DMErro
 
 impl Expression {
     /// Evaluate this expression in the absence of any surrounding context.
-    pub fn simple_evaluate(self, location: Location) -> Result<Constant, DMError> {
+    pub fn simple_evaluate(&self, location: Location) -> Result<Constant, DMError> {
         ConstantFolder {
             context: None,
             tree: None,
@@ -477,7 +474,7 @@ impl Expression {
 /// Evaluate an expression in the preprocessor, with `defined()` available.
 pub fn preprocessor_evaluate(
     location: Location,
-    expr: Expression,
+    expr: &Expression,
     defines: &DefineMap,
     context: Option<&Context>,
 ) -> Result<Constant, DMError> {
@@ -585,7 +582,7 @@ fn constant_ident_lookup(
         ty,
     }
     .expr(
-        expr,
+        &expr,
         if type_hint.is_empty() {
             None
         } else {
@@ -616,45 +613,35 @@ impl<'a> HasLocation for ConstantFolder<'a> {
 impl<'a> ConstantFolder<'a> {
     fn expr(
         &mut self,
-        expression: Expression,
+        expression: &Expression,
         type_hint: Option<&AbsolutePath>,
     ) -> Result<Constant, DMError> {
         Ok(match expression {
             Expression::Base { term, follow } => {
                 let base_type_hint = if follow.is_empty() { type_hint } else { None };
-                let mut term = self.term(term.elem, base_type_hint)?;
-                for each in Vec::from(follow).into_iter() {
-                    term = self.follow(term, each.elem)?;
+                let mut term = self.term(&term.elem, base_type_hint)?;
+                for each in follow.iter() {
+                    term = self.follow(term, &each.elem)?;
                 }
                 term
             },
             Expression::BinaryOp { op, lhs, rhs } => {
-                let lhs = self.expr(*lhs, None)?;
-                let rhs = self.expr(*rhs, None)?;
-                self.binary(lhs, rhs, op)?
+                let lhs = self.expr(lhs, None)?;
+                let rhs = self.expr(rhs, None)?;
+                self.binary(lhs, rhs, *op)?
             },
-            Expression::TernaryOp { cond, if_, else_ } => match self.expr(*cond, None)?.to_bool() {
-                true => self.expr(*if_, type_hint)?,
-                false => self.expr(*else_, type_hint)?,
+            Expression::TernaryOp { cond, if_, else_ } => match self.expr(cond, None)?.to_bool() {
+                true => self.expr(if_, type_hint)?,
+                false => self.expr(else_, type_hint)?,
             },
             Expression::AssignOp { .. } => return Err(self.error("non-constant assignment")),
         })
     }
 
-    /// list of expressions, keyword arguments disallowed
-    #[allow(dead_code)]
-    fn expr_vec(&mut self, v: Vec<Expression>) -> Result<Vec<Constant>, DMError> {
-        let mut out = Vec::with_capacity(v.len());
-        for each in v {
-            out.push(self.expr(each, None)?);
-        }
-        Ok(out)
-    }
-
     /// arguments or keyword arguments
-    fn arguments(&mut self, v: Box<[Expression]>) -> Result<Box<Arguments>, DMError> {
+    fn arguments(&mut self, v: &[Expression]) -> Result<Arguments, DMError> {
         let mut out = Vec::with_capacity(v.len());
-        for each in Vec::from(v).into_iter() {
+        for each in v.iter() {
             out.push(match each {
                 // handle associations
                 Expression::AssignOp {
@@ -662,11 +649,13 @@ impl<'a> ConstantFolder<'a> {
                     lhs,
                     rhs,
                 } => {
-                    let key = match Term::from(*lhs) {
-                        Term::Ident(ident) => Constant::String(ident),
-                        other => self.term(other, None)?,
+                    let key = match lhs.as_term() {
+                        Some(Term::Ident(ident)) => Constant::String(ident.clone()),
+                        Some(other) => self.term(other, None)?,
+                        None => self.expr(lhs, None)?,
                     };
-                    (key, Some(self.expr(*rhs, None)?))
+                    let value = self.expr(rhs, None)?;
+                    (key, Some(value))
                 },
                 key => (self.expr(key, None)?, None),
             });
@@ -674,7 +663,7 @@ impl<'a> ConstantFolder<'a> {
         Ok(out.into())
     }
 
-    fn follow(&mut self, term: Constant, follow: Follow) -> Result<Constant, DMError> {
+    fn follow(&mut self, term: Constant, follow: &Follow) -> Result<Constant, DMError> {
         match (term, follow) {
             // Meant to handle the GLOB.SCI_FREQ case:
             //     /datum/globals/var/const/SCI_FREQ = 1351
@@ -698,7 +687,7 @@ impl<'a> ConstantFolder<'a> {
                     None => Err(self.error(format!("unknown typepath {full_path}"))),
                 }
             },
-            (term, Follow::Unary(op)) => self.unary(term, op),
+            (term, Follow::Unary(op)) => self.unary(term, *op),
             (term, Follow::StaticField(field)) => {
                 let Constant::Prefab(read_from) = term else {
                     return Err(self.error(format!("non typepath {term} used with ::")));
@@ -807,11 +796,11 @@ impl<'a> ConstantFolder<'a> {
         }
     }
 
-    fn term(&mut self, term: Term, type_hint: Option<&AbsolutePath>) -> Result<Constant, DMError> {
+    fn term(&mut self, term: &Term, type_hint: Option<&AbsolutePath>) -> Result<Constant, DMError> {
         Ok(match term {
             Term::Null => Constant::Null(type_hint.cloned()),
             Term::NewPrefab { prefab, args } => Constant::New {
-                type_: Some(Box::new(self.prefab(*prefab)?)),
+                type_: Some(Box::new(self.prefab(prefab)?)),
                 args: match args {
                     Some(args) => Some(self.arguments(args)?),
                     None => None,
@@ -826,7 +815,7 @@ impl<'a> ConstantFolder<'a> {
             },
             Term::NewMiniExpr { .. } => return Err(self.error("non-constant new expression")),
             Term::List(vec) => Constant::List(self.arguments(vec)?),
-            Term::Call(ident, args) => match &*ident {
+            Term::Call(ident, args) => match ident.as_str() {
                 // constructors which remain as they are
                 "matrix" => Constant::Call(ConstFn::Matrix, self.arguments(args)?),
                 "newlist" => Constant::Call(ConstFn::Newlist, self.arguments(args)?),
@@ -875,7 +864,10 @@ impl<'a> ConstantFolder<'a> {
                         },
                     }
                 },
-                "fexists" if self.defines.is_some() && self.context.is_some() => {
+                "fexists"
+                    if self.defines.is_some()
+                        && let Some(context) = self.context =>
+                {
                     if args.len() != 1 {
                         return Err(self.error(format!(
                             "malformed fexists() call, must have 1 argument and instead has {}",
@@ -884,13 +876,13 @@ impl<'a> ConstantFolder<'a> {
                     }
                     match args[0].as_term() {
                         Some(Term::String(passed_path)) => {
-                            let current_file_path = self.context.unwrap(/* is_some checked above */).file_path(self.location.file);
+                            let current_file_path = context.file_path(self.location.file);
                             let Some(current_dir) = current_file_path.parent() else {
                                 return Err(self.error(format!(
                                     "fexists() file has no parent: {current_file_path:?}"
                                 )));
                             };
-                            current_dir.join(passed_path).exists().into()
+                            current_dir.join(passed_path.as_str()).exists().into()
                         },
                         _ => {
                             return Err(self.error(
@@ -902,7 +894,7 @@ impl<'a> ConstantFolder<'a> {
                 // other functions are no-goes
                 _ => return Err(self.error(format!("non-constant function call: {ident}"))),
             },
-            Term::Prefab(prefab) => Constant::Prefab(Box::new(self.prefab(*prefab)?)),
+            Term::Prefab(prefab) => Constant::Prefab(Box::new(self.prefab(prefab)?)),
             Term::Ident(ident) => match ident.as_str() {
                 // We need to handle type and parent_type here
                 // They technically resolve to their respective values only in type defs when using ::
@@ -930,11 +922,11 @@ impl<'a> ConstantFolder<'a> {
                 },
                 _ => self.ident(ident, false)?,
             },
-            Term::String(v) => Constant::String(v.into()),
-            Term::Resource(v) => Constant::Resource(v.into()),
-            Term::Int(v) => Constant::Float(v as f32),
-            Term::Float(v) => Constant::from(v),
-            Term::Expr(expr) => self.expr(*expr, type_hint)?,
+            Term::String(v) => Constant::String(Ident::from_nonstatic(v)),
+            Term::Resource(v) => Constant::Resource(Ident::from_nonstatic(v)),
+            Term::Int(v) => Constant::Float(*v as f32),
+            Term::Float(v) => Constant::Float(*v),
+            Term::Expr(expr) => self.expr(expr, type_hint)?,
             Term::__TYPE__ => {
                 if let Some(obj_tree) = &self.tree {
                     let typeval = TypeRef::new(obj_tree, self.ty).get();
@@ -955,25 +947,19 @@ impl<'a> ConstantFolder<'a> {
         })
     }
 
-    fn trig_op(
-        &mut self,
-        args: Box<[Expression]>,
-        op: fn(f32) -> f32,
-    ) -> Result<Constant, DMError> {
-        if args.len() != 1 {
-            Err(self.error(format!(
+    fn trig_op(&mut self, args: &[Expression], op: fn(f32) -> f32) -> Result<Constant, DMError> {
+        match args {
+            [expr] if let Some(f) = self.expr(expr, None)?.to_float() => Ok(Constant::Float(op(f))),
+            [_] => Err(self.error("trig function requires numeric argument")),
+            _ => Err(self.error(format!(
                 "trig function requires exactly 1 argument, instead found {}",
                 args.len()
-            )))
-        } else if let Some(f) = self.expr(Vec::from(args).swap_remove(0), None)?.to_float() {
-            Ok(Constant::Float(op(f)))
-        } else {
-            Err(self.error("trig function requires numeric argument"))
+            ))),
         }
     }
 
-    fn prefab(&mut self, prefab: Prefab) -> Result<Pop, DMError> {
-        let vars = self.vars(prefab.vars.into())?;
+    fn prefab(&mut self, prefab: &Prefab) -> Result<Pop, DMError> {
+        let vars = self.vars(&prefab.vars)?;
 
         // If the path is all slashes, it's absolute, and doesn't need to be
         // further resolved.
@@ -1014,7 +1000,7 @@ impl<'a> ConstantFolder<'a> {
 
     fn vars(
         &mut self,
-        input: Vec<(Ident, Expression)>,
+        input: &[(Ident, Expression)],
     ) -> Result<IndexMap<Ident, Constant, RandomState>, DMError> {
         // Visit the vars recursively.
         let mut vars = IndexMap::with_hasher(RandomState::default());
@@ -1025,7 +1011,7 @@ impl<'a> ConstantFolder<'a> {
         Ok(vars)
     }
 
-    fn ident(&mut self, ident: Ident, must_be_const: bool) -> Result<Constant, DMError> {
+    fn ident(&mut self, ident: &str, must_be_const: bool) -> Result<Constant, DMError> {
         let ty = self.ty;
         self.recursive_lookup(ty, &ident, must_be_const)
     }
@@ -1079,7 +1065,7 @@ impl<'a> ConstantFolder<'a> {
         ))))
     }
 
-    fn rgb(&mut self, args: Box<[Expression]>) -> Result<String, DMError> {
+    fn rgb(&mut self, args: &[Expression]) -> Result<String, DMError> {
         enum ColorSpace {
             Rgb = 0,
             Hsv = 1,

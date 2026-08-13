@@ -641,15 +641,13 @@ impl<'ctx> Preprocessor<'ctx> {
         }
 
         let expr = crate::parser::parse_expression(self.context, start, self.output.drain(..))?;
-        Ok(
-            crate::constants::preprocessor_evaluate(
-                start,
-                expr,
-                &self.defines,
-                Some(self.context),
-            )?
-            .to_bool(),
-        )
+        Ok(crate::constants::preprocessor_evaluate(
+            start,
+            &expr,
+            &self.defines,
+            Some(self.context),
+        )?
+        .to_bool())
     }
 
     fn evaluate(&mut self) -> bool {
