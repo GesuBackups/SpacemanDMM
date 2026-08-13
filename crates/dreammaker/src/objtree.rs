@@ -951,7 +951,7 @@ impl ObjectTreeBuilder {
                         // or pre-evaluated constants (builtins).
                         let constant = if let Some(constant) = var.value.constant.as_ref() {
                             Ok(constant)
-                        } else if let Some(expr) = var.value.expression.clone() {
+                        } else if let Some(expr) = &var.value.expression {
                             match expr.simple_evaluate(location) {
                                 Ok(constant) => {
                                     constant_buf = constant;

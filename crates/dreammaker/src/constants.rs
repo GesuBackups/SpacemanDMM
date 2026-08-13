@@ -528,9 +528,8 @@ fn constant_ident_lookup(
     // try to read the currently-set value if we can and
     // substitute that in, otherwise try to evaluate it.
     let (location, type_hint, expr) = {
-        let decl = match tree[ty].get_var_declaration(ident, tree).cloned() {
-            Some(decl) => decl,
-            None => return Ok(ConstLookup::Continue(None)), // definitely doesn't exist
+        let Some(decl) = tree[ty].get_var_declaration(ident, tree).cloned() else {
+            return Ok(ConstLookup::Continue(None)); // definitely doesn't exist
         };
 
         let type_ = &mut tree[ty];
@@ -539,9 +538,7 @@ fn constant_ident_lookup(
             None => return Ok(ConstLookup::Continue(parent)),
             Some(var) => match var.value.constant.clone() {
                 Some(constant) => {
-                    return Ok(ConstLookup::Found(
-                        /*decl.var_type.type_path,*/ constant,
-                    ));
+                    return Ok(ConstLookup::Found(constant));
                 },
                 None => match var.value.expression.clone() {
                     Some(expr) => {
@@ -567,7 +564,7 @@ fn constant_ident_lookup(
                     None => {
                         let c = Constant::Null(Some(decl.var_type.type_path.clone()));
                         var.value.constant = Some(c.clone());
-                        return Ok(ConstLookup::Found(/*decl.var_type.type_path,*/ c));
+                        return Ok(ConstLookup::Found(c));
                     },
                 },
             },
@@ -593,7 +590,7 @@ fn constant_ident_lookup(
     let var = tree[ty].vars.get_mut(ident).unwrap();
     var.value.constant = Some(value.clone());
     var.value.being_evaluated = false;
-    Ok(ConstLookup::Found(/*type_hint,*/ value))
+    Ok(ConstLookup::Found(value))
 }
 
 struct ConstantFolder<'a> {
@@ -683,7 +680,7 @@ impl<'a> ConstantFolder<'a> {
                     .and_then(|t| t.find(&full_path))
                     .map(|t| t.index())
                 {
-                    Some(idx) => self.recursive_lookup(idx, &field_name, true),
+                    Some(idx) => self.recursive_lookup(idx, field_name, true),
                     None => Err(self.error(format!("unknown typepath {full_path}"))),
                 }
             },
@@ -701,7 +698,7 @@ impl<'a> ConstantFolder<'a> {
                 let Some(real_type) = tree.find(read_from.path.to_string().as_str()) else {
                     return Err(self.error(format!("{} was not a valid type", read_from.path)));
                 };
-                self.recursive_lookup(real_type.index(), &field, false)
+                self.recursive_lookup(real_type.index(), field, false)
             },
             (term, Follow::ProcReference(field)) => {
                 let Constant::Prefab(read_from) = term else {
@@ -716,7 +713,7 @@ impl<'a> ConstantFolder<'a> {
                 let Some(real_type) = tree.find(read_from.path.to_string().as_str()) else {
                     return Err(self.error(format!("{} was not a valid type", read_from.path)));
                 };
-                self.proc_ref_lookup(real_type.index(), &field)
+                self.proc_ref_lookup(real_type.index(), field)
             },
             (term, follow) => Err(self.error(format!(
                 "non-constant expression follower: {term} {follow:?}"
@@ -856,7 +853,7 @@ impl<'a> ConstantFolder<'a> {
                         )));
                     }
                     match args[0].nameof() {
-                        Some(name) => Constant::string(name.to_owned()),
+                        Some(name) => Constant::String(Ident::from_nonstatic(name)),
                         None => {
                             return Err(self.error(
                                 "malformed nameof() call, expression appears to have no name",
@@ -1013,7 +1010,7 @@ impl<'a> ConstantFolder<'a> {
 
     fn ident(&mut self, ident: &str, must_be_const: bool) -> Result<Constant, DMError> {
         let ty = self.ty;
-        self.recursive_lookup(ty, &ident, must_be_const)
+        self.recursive_lookup(ty, ident, must_be_const)
     }
 
     fn recursive_lookup(
@@ -1025,12 +1022,11 @@ impl<'a> ConstantFolder<'a> {
         let mut idx = Some(ty);
         while let Some(ty) = idx {
             let location = self.location;
-            if self.tree.is_none() {
+            let Some(tree) = &mut self.tree else {
                 return Err(self.error(format!(
                     "cannot reference variable {ident:?} in this context"
                 )));
-            }
-            let tree = self.tree.as_mut().unwrap();
+            };
             match constant_ident_lookup(tree, ty, ident, must_be_const, self.context)
                 .map_err(|e| e.with_location(location))?
             {

@@ -2386,7 +2386,7 @@ impl<'o, 's> AnalyzeProc<'o, 's> {
             },
             Term::String(text) => Analysis::from_value(
                 self.objtree,
-                Constant::String(text.clone().into()),
+                Constant::String(text.clone()),
                 type_hint,
             ),
             Term::Resource(text) => Analysis::from_value(

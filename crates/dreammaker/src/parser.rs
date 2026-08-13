@@ -2618,15 +2618,15 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
                     self.expected("']'");
                     take_match!(self {
                         Token::InterpStringPart(part) => {
-                            parts.push((expr, part.into()));
+                            parts.push((expr, part));
                         },
                         Token::InterpStringEnd(end) => {
-                            parts.push((expr, end.into()));
+                            parts.push((expr, end));
                             break;
                         },
                     } else return Err(self.parse_error()));
                 }
-                Term::InterpString(begin.into(), parts.into())
+                Term::InterpString(begin, parts.into())
             },
         } else match self.peek() {
             // term :: prefab
