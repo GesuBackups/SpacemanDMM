@@ -1,13 +1,12 @@
 //! DMI metadata parsing and representation.
 
 use foldhash::{HashMap, HashMapExt};
+use lodepng::Decoder;
+
 use std::collections::BTreeMap;
 use std::fmt::Display;
 use std::io;
 use std::path::Path;
-
-use derivative::Derivative;
-use lodepng::Decoder;
 
 const EXPECTED_VERSION_LINE: &str = "version = 4.0";
 
@@ -218,15 +217,13 @@ pub struct Metadata {
 }
 
 /// The metadata belonging to a single icon state.
-#[derive(Derivative, Debug, Clone)]
-#[derivative(PartialEq)]
+#[derive(Debug, Clone)]
 pub struct State {
     /// The state's name, corresponding to the `icon_state` var.
     pub name: String,
     /// Whether this is a movement state (shown during gliding).
     pub movement: bool,
     /// The number of frames in the spritesheet before this state's first frame.
-    #[derivative(PartialEq = "ignore")]
     pub offset: usize,
     /// 0 for infinite, 1+ for finite.
     pub loop_: u32,
@@ -235,6 +232,19 @@ pub struct State {
     pub rewind: bool,
     pub dirs: Dirs,
     pub frames: Frames,
+}
+
+impl PartialEq for State {
+    fn eq(&self, other: &Self) -> bool {
+        self.name == other.name
+            && self.movement == other.movement
+            // SKIP self.offset
+            && self.loop_ == other.loop_
+            && self.duplicate_index == other.duplicate_index
+            && self.rewind == other.rewind
+            && self.dirs == other.dirs
+            && self.frames == other.frames
+    }
 }
 
 /// How many directions a state has.
