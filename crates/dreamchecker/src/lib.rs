@@ -463,7 +463,7 @@ impl<'o> ProcDirective<'o> {
                 ),
             )
             .with_errortype("disabled_directive")
-            .set_severity(Severity::Warning));
+            .with_severity(Severity::Warning));
         }
         if let Some((_, originallocation)) = self.directive.get(&proc) {
             return Err(error(
@@ -472,7 +472,7 @@ impl<'o> ProcDirective<'o> {
             )
             .with_note(*originallocation, "first definition here")
             .with_errortype("sets_directive_twice")
-            .set_severity(Severity::Warning));
+            .with_severity(Severity::Warning));
         }
         self.directive.insert(proc, (enable, location));
         Ok(())
@@ -515,7 +515,7 @@ pub fn directive_value_to_truthy(expr: &Expression, location: Location) -> Resul
         Some(Term::Ident(i)) if i == "FALSE" => Ok(false),
         Some(Term::Ident(i)) if i == "TRUE" => Ok(true),
         _ => Err(error(location, format!("invalid value for set {expr:?}"))
-            .set_severity(Severity::Warning)),
+            .with_severity(Severity::Warning)),
     }
 }
 
@@ -713,7 +713,7 @@ impl<'o> AnalyzeObjectTree<'o> {
             other => {
                 error(location, format!("unknown linter setting {directive:?}"))
                     .with_errortype("unknown_linter_setting")
-                    .set_severity(Severity::Warning)
+                    .with_severity(Severity::Warning)
                     .register(self.context);
                 return;
             },
@@ -726,7 +726,7 @@ impl<'o> AnalyzeObjectTree<'o> {
                         location,
                         format!("Can't define procs {directive} outside their initial definition"),
                     )
-                    .set_severity(Severity::Warning)
+                    .with_severity(Severity::Warning)
                     .register(self.context);
                     return;
                 }
@@ -1015,7 +1015,7 @@ impl<'o> AnalyzeObjectTree<'o> {
                     self.add_directive_or_error(proc, name.as_str(), value, statement.location);
                 } else if !KNOWN_SETTING_NAMES.contains(&name.as_str()) {
                     error(statement.location, format!("unknown setting {name:?}"))
-                        .set_severity(Severity::Warning)
+                        .with_severity(Severity::Warning)
                         .register(self.context);
                 } else {
                     match name.as_str() {
@@ -1025,7 +1025,7 @@ impl<'o> AnalyzeObjectTree<'o> {
                                     statement.location,
                                     format!("set {} must be 0/1/TRUE/FALSE", name.as_str()),
                                 )
-                                .set_severity(Severity::Warning)
+                                .with_severity(Severity::Warning)
                                 .with_errortype("invalid_set_value")
                                 .register(self.context);
                             }
@@ -1045,7 +1045,7 @@ impl<'o> AnalyzeObjectTree<'o> {
                                                 name.as_str()
                                             ),
                                         )
-                                        .set_severity(Severity::Warning)
+                                        .with_severity(Severity::Warning)
                                         .with_errortype("invalid_set_value")
                                         .register(self.context);
                                     },
@@ -1059,7 +1059,7 @@ impl<'o> AnalyzeObjectTree<'o> {
                                 }
                             }
                             error(statement.location, "set invisibility must be 0-100")
-                                .set_severity(Severity::Warning)
+                                .with_severity(Severity::Warning)
                                 .with_errortype("invalid_set_value")
                                 .register(self.context);
                         },
@@ -1556,7 +1556,7 @@ impl<'o, 's> AnalyzeProc<'o, 's> {
                 )
                 .with_errortype("redefined_proc")
                 .with_note(parent.location, "previous definition is here")
-                .set_severity(Severity::Hint)
+                .with_severity(Severity::Hint)
                 .register(self.context);
             }
         }
@@ -1682,7 +1682,7 @@ impl<'o, 's> AnalyzeProc<'o, 's> {
                 // TODO: factor in the previous return type if there was one
                 if self.inside_newcontext > 0 {
                     error(location, "returning a value in a spawn has no effect")
-                        .set_severity(Severity::Warning)
+                        .with_severity(Severity::Warning)
                         .register(self.context);
                 }
                 let return_type = self.visit_expression(location, expr, None, local_vars);
@@ -1857,7 +1857,7 @@ impl<'o, 's> AnalyzeProc<'o, 's> {
                                         location,
                                         "iterating over a /datum which might not be an /atom",
                                     )
-                                    .set_severity(Severity::Hint)
+                                    .with_severity(Severity::Hint)
                                     .register(self.context);
                                 } else {
                                     // The type is a /datum/foo subtype that definitely can't be looped over.
@@ -1974,7 +1974,7 @@ impl<'o, 's> AnalyzeProc<'o, 's> {
                     ] = case.elem[..]
                     {
                         error(case.location, "Elements in a switch-case branch separated by ||, this is likely in error and should be replaced by a comma")
-                            .set_severity(Severity::Warning)
+                            .with_severity(Severity::Warning)
                             .register(self.context);
                     }
                     for case_part in case.elem.iter() {
@@ -2025,7 +2025,7 @@ impl<'o, 's> AnalyzeProc<'o, 's> {
                             catch_params.len()
                         ),
                     )
-                    .set_severity(Severity::Warning)
+                    .with_severity(Severity::Warning)
                     .register(self.context);
                 }
                 let mut catch_locals = local_vars.clone();
@@ -2100,7 +2100,7 @@ impl<'o, 's> AnalyzeProc<'o, 's> {
                                         location,
                                         "iterating over a /datum which might not be an /atom",
                                     )
-                                    .set_severity(Severity::Hint)
+                                    .with_severity(Severity::Hint)
                                     .register(self.context);
                                 } else {
                                     // The type is a /datum/foo subtype that definitely can't be looped over.
@@ -2245,7 +2245,7 @@ impl<'o, 's> AnalyzeProc<'o, 's> {
                                     location,
                                     format!("ambiguous `{}` on left side of an `in`", unary.name()),
                                 )
-                                .set_severity(Severity::Warning)
+                                .with_severity(Severity::Warning)
                                 .with_errortype("ambiguous_in_lhs")
                                 .with_note(
                                     location,
@@ -2271,7 +2271,7 @@ impl<'o, 's> AnalyzeProc<'o, 's> {
                             location,
                             format!("ambiguous `{op}` on left side of an `in`"),
                         )
-                        .set_severity(Severity::Warning)
+                        .with_severity(Severity::Warning)
                         .with_errortype("ambiguous_in_lhs")
                         .with_note(
                             location,
@@ -2288,7 +2288,7 @@ impl<'o, 's> AnalyzeProc<'o, 's> {
                             location,
                             format!("ambiguous `{op}` on left side of an `in`"),
                         )
-                        .set_severity(Severity::Warning)
+                        .with_severity(Severity::Warning)
                         .with_errortype("ambiguous_in_lhs")
                         .with_note(
                             location,
@@ -2305,7 +2305,7 @@ impl<'o, 's> AnalyzeProc<'o, 's> {
                             location,
                             "ambiguous ternary on left side of an `in`".to_string(),
                         )
-                        .set_severity(Severity::Warning)
+                        .with_severity(Severity::Warning)
                         .with_errortype("ambiguous_in_lhs")
                         .with_note(location, "add parentheses to fix: `a ? b : (c in d)`")
                         .with_note(
@@ -2829,7 +2829,7 @@ impl<'o, 's> AnalyzeProc<'o, 's> {
                                 format!("field {name:?} on {ty} is declared as private"),
                             )
                             .with_errortype("private_var")
-                            .set_severity(Severity::Warning)
+                            .with_severity(Severity::Warning)
                             .with_note(decl.location, "definition is here")
                             .register(self.context);
                         } else if !self.ty.is_subtype_of(ty.get())
@@ -2840,7 +2840,7 @@ impl<'o, 's> AnalyzeProc<'o, 's> {
                                 format!("field {name:?} on {ty} is declared as protected"),
                             )
                             .with_errortype("protected_var")
-                            .set_severity(Severity::Warning)
+                            .with_severity(Severity::Warning)
                             .with_note(decl.location, "definition is here")
                             .register(self.context);
                         }
@@ -2856,7 +2856,7 @@ impl<'o, 's> AnalyzeProc<'o, 's> {
                         location,
                         format!("field access requires static type: {name:?}"),
                     )
-                    .set_severity(Severity::Warning)
+                    .with_severity(Severity::Warning)
                     .with_errortype("field_access_static_type")
                     .with_fix_hint(&lhs)
                     .register(self.context);
@@ -2958,7 +2958,7 @@ impl<'o, 's> AnalyzeProc<'o, 's> {
                         location,
                         format!("proc call requires static type: {name:?}"),
                     )
-                    .set_severity(Severity::Warning)
+                    .with_severity(Severity::Warning)
                     .with_errortype("proc_call_static_type")
                     .with_fix_hint(&lhs)
                     .register(self.context);
@@ -3105,7 +3105,7 @@ impl<'o, 's> AnalyzeProc<'o, 's> {
                 format!("Ambiguous `!` on left side of bitwise `{bit_op}` operator"),
             )
             .with_errortype("ambiguous_not_bitwise")
-            .set_severity(Severity::Warning)
+            .with_severity(Severity::Warning)
             .with_note(location, format!("Did you mean `!(x {bit_op} y)`?"))
             .with_note(location, format!("Did you mean `!x {bool_op} y`?"))
             .with_note(location, format!("Did you mean `~x {bit_op} y`?"))
@@ -3382,7 +3382,7 @@ impl<'o, 's> AnalyzeProc<'o, 's> {
                 location,
                 "list.Find() with no arguments searches for null, write Find(null) if that is intended",
             )
-            .set_severity(Severity::Warning)
+            .with_severity(Severity::Warning)
             .with_errortype("empty_find")
             .register(self.context);
         }

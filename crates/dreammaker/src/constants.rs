@@ -1232,7 +1232,7 @@ impl<'a> ConstantFolder<'a> {
                             range.start(),
                             range.end()
                         ))
-                        .set_severity(Severity::Warning)
+                        .with_severity(Severity::Warning)
                         .with_location(self.location));
                 }
                 let clamped = std::cmp::max(::std::cmp::min(i, *range.end()), *range.start());

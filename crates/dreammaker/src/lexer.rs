@@ -831,7 +831,7 @@ impl<'ctx> Lexer<'ctx> {
                     self.error(
                         "backslash in line comment may be commenting out the following line",
                     )
-                    .set_severity(Severity::Warning)
+                    .with_severity(Severity::Warning)
                     .register(self.context);
                 }
                 backslash = false;
@@ -931,7 +931,7 @@ impl<'ctx> Lexer<'ctx> {
                         self.error(format!(
                             "precision loss of integer constant: \"{buf}\" to {val}"
                         ))
-                        .set_severity(Severity::Warning)
+                        .with_severity(Severity::Warning)
                         .with_errortype("integer_precision_loss")
                         .register(self.context);
                     }

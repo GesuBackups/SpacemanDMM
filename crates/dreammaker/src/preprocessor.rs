@@ -702,7 +702,7 @@ impl<'ctx> Preprocessor<'ctx> {
             if !self.multiple_locations.contains_key(&file_id) {
                 Err(
                     DMError::new(self.last_input_loc, format!("duplicate #include {path:?}"))
-                        .set_severity(Severity::Warning)
+                        .with_severity(Severity::Warning)
                         .with_note(loc, "previously included here")
                         .with_errortype("duplicate_include"),
                 )
@@ -972,7 +972,7 @@ impl<'ctx> Preprocessor<'ctx> {
                                             },
                                         };
                                         self.error(message)
-                                            .set_severity(Severity::Hint)
+                                            .with_severity(Severity::Hint)
                                             .register(self.context);
                                     }
                                     docs.push(doc);
@@ -995,7 +995,7 @@ impl<'ctx> Preprocessor<'ctx> {
                                                 },
                                             };
                                             self.error(message)
-                                                .set_severity(Severity::Hint)
+                                                .with_severity(Severity::Hint)
                                                 .register(self.context);
                                         }
                                         docs.push(doc);
@@ -1023,7 +1023,7 @@ impl<'ctx> Preprocessor<'ctx> {
                                         define_name_loc,
                                         format!("macro redefined: {define_name}"),
                                     )
-                                    .set_severity(Severity::Warning)
+                                    .with_severity(Severity::Warning)
                                     .with_note(
                                         previous_loc,
                                         format!("previous definition of {define_name}"),
@@ -1046,7 +1046,7 @@ impl<'ctx> Preprocessor<'ctx> {
                                 format!("macro undefined while not defined: {define_name}"),
                             )
                             .with_errortype("macro_undefined_no_definition")
-                            .set_severity(Severity::Warning)
+                            .with_severity(Severity::Warning)
                             .register(self.context);
                         }
                     },
@@ -1057,7 +1057,7 @@ impl<'ctx> Preprocessor<'ctx> {
                             self.last_input_loc,
                             format!("#{} {}", ident, text.trim_end_matches(['\r', '\n'])),
                         )
-                        .set_severity(Severity::Warning)
+                        .with_severity(Severity::Warning)
                         .register(self.context);
                     },
                     "error" if disabled => {},

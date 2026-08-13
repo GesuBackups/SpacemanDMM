@@ -32,7 +32,7 @@ pub fn check_switch_rand_range(
                 } else {
                     DMError::new(location, format!("Case range '{start} to {end}' will never trigger as it is outside the rand() range {rand_start} to {rand_end}"))
                         .with_component(dm::Component::DreamChecker)
-                        .set_severity(Severity::Warning)
+                        .with_severity(Severity::Warning)
                         .register(context);
                 }
             }
@@ -62,7 +62,7 @@ pub fn check_switch_rand_range(
             ),
         )
         .with_component(dm::Component::DreamChecker)
-        .set_severity(Severity::Warning)
+        .with_severity(Severity::Warning)
         .register(context);
     }
 }

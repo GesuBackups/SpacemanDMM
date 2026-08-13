@@ -465,7 +465,7 @@ impl DMError {
         self.with_boxed_cause(Box::new(cause))
     }
 
-    pub fn set_severity(mut self, severity: Severity) -> DMError {
+    pub fn with_severity(mut self, severity: Severity) -> DMError {
         self.severity = severity;
         self
     }

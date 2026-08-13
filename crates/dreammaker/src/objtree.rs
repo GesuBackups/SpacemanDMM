@@ -1286,7 +1286,7 @@ impl ObjectTreeBuilder {
                     proc.value[0].location,
                     format!("override of {}/{} precedes definition", node.path, name),
                 )
-                .set_severity(Severity::Hint)
+                .with_severity(Severity::Hint)
                 .with_errortype("override_precedes_definition")
                 .with_note(
                     location,
