@@ -54,7 +54,7 @@ pub fn parse_map(map: &mut Map, path: &std::path::Path) -> Result<(), DMError> {
                             curr_key_start_location,
                             format!(
                                 "within key: \"{}\"",
-                                super::FormatKey(curr_key_length, super::Key(curr_key))
+                                super::Key(curr_key).display(curr_key_length)
                             ),
                         )
                     })?,

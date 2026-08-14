@@ -300,10 +300,12 @@ impl<'a> TypeRef<'a> {
     }
 
     /// Iterate over all child **paths**.
-    pub fn children<'b>(&'b self) -> impl Iterator<Item = TypeRef<'a>> + 'b {
-        self.children
+    pub fn children(&self) -> impl Iterator<Item = TypeRef<'a>> + 'a {
+        let tree = self.tree;
+        self.get()
+            .children
             .values()
-            .map(move |&idx| TypeRef::new(self.tree, idx))
+            .map(move |&idx| TypeRef::new(tree, idx))
     }
 
     /// Recursively visit this and all child **paths**.
@@ -342,20 +344,14 @@ impl<'a> TypeRef<'a> {
     }
 
     pub fn iter_parent_types(&self) -> impl Iterator<Item = TypeRef<'a>> {
-        struct ParentTypeIter<'a>(Option<TypeRef<'a>>);
-        impl<'a> Iterator for ParentTypeIter<'a> {
-            type Item = TypeRef<'a>;
-            fn next(&mut self) -> Option<TypeRef<'a>> {
-                match self.0 {
-                    Some(v) => {
-                        self.0 = v.parent_type();
-                        Some(v)
-                    },
-                    None => None,
-                }
-            }
-        }
-        ParentTypeIter(Some(*self))
+        let mut this = Some(*self);
+        std::iter::from_fn(move || match this {
+            Some(v) => {
+                this = v.parent_type();
+                Some(v)
+            },
+            None => None,
+        })
     }
 
     /// Recursively visit this and all parent **paths**.

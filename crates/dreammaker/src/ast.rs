@@ -41,30 +41,18 @@ impl UnaryOp {
     /// Prepare to display this unary operator around (to the left or right of)
     /// its operand.
     pub fn around<T: fmt::Display + ?Sized>(self, expr: &'_ T) -> impl fmt::Display + '_ {
-        /// A formatting wrapper created by `UnaryOp::around`.
-        struct Around<'a, T: 'a + ?Sized> {
-            op: UnaryOp,
-            expr: &'a T,
-        }
-
-        impl<'a, T: fmt::Display + ?Sized> fmt::Display for Around<'a, T> {
-            fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-                use self::UnaryOp::*;
-                match self.op {
-                    Neg => write!(f, "-{}", self.expr),
-                    Not => write!(f, "!{}", self.expr),
-                    BitNot => write!(f, "~{}", self.expr),
-                    PreIncr => write!(f, "++{}", self.expr),
-                    PostIncr => write!(f, "{}++", self.expr),
-                    PreDecr => write!(f, "--{}", self.expr),
-                    PostDecr => write!(f, "{}--", self.expr),
-                    Reference => write!(f, "&{}", self.expr),
-                    Dereference => write!(f, "*{}", self.expr),
-                }
-            }
-        }
-
-        Around { op: self, expr }
+        use self::UnaryOp::*;
+        fmt::from_fn(move |f| match self {
+            Neg => write!(f, "-{}", expr),
+            Not => write!(f, "!{}", expr),
+            BitNot => write!(f, "~{}", expr),
+            PreIncr => write!(f, "++{}", expr),
+            PostIncr => write!(f, "{}++", expr),
+            PreDecr => write!(f, "--{}", expr),
+            PostDecr => write!(f, "{}--", expr),
+            Reference => write!(f, "&{}", expr),
+            Dereference => write!(f, "*{}", expr),
+        })
     }
 
     /// Get a human-readable name for this unary operator. May be ambiguous.
@@ -420,23 +408,15 @@ impl ProcFlags {
         self.contains(ProcFlags::FINAL)
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = &'static str> {
-        struct ProcFlagsIter(ProcFlags);
-
-        impl Iterator for ProcFlagsIter {
-            type Item = &'static str;
-
-            fn next(&mut self) -> Option<Self::Item> {
-                if self.0.is_final() {
-                    self.0 &= !ProcFlags::FINAL;
-                    Some("final")
-                } else {
-                    None
-                }
+    pub fn iter(mut self) -> impl Iterator<Item = &'static str> {
+        std::iter::from_fn(move || {
+            if self.is_final() {
+                self &= !ProcFlags::FINAL;
+                Some("final")
+            } else {
+                None
             }
-        }
-
-        ProcFlagsIter(*self)
+        })
     }
 }
 
@@ -658,38 +638,30 @@ impl VarTypeFlags {
         !self.intersects(VarTypeFlags::CONST | VarTypeFlags::STATIC | VarTypeFlags::PROTECTED)
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = &'static str> {
-        struct VarTypeFlagsIter(VarTypeFlags);
-
-        impl Iterator for VarTypeFlagsIter {
-            type Item = &'static str;
-
-            fn next(&mut self) -> Option<Self::Item> {
-                if self.0.is_static() {
-                    self.0 &= !VarTypeFlags::STATIC;
-                    Some("static")
-                } else if self.0.is_const() {
-                    self.0 &= !VarTypeFlags::CONST;
-                    Some("const")
-                } else if self.0.is_tmp() {
-                    self.0 &= !VarTypeFlags::TMP;
-                    Some("tmp")
-                } else if self.0.is_final() {
-                    self.0 &= !VarTypeFlags::FINAL;
-                    Some("final")
-                } else if self.0.is_private() {
-                    self.0 &= !VarTypeFlags::PRIVATE;
-                    Some("SpacemanDMM_private")
-                } else if self.0.is_protected() {
-                    self.0 &= !VarTypeFlags::PROTECTED;
-                    Some("SpacemanDMM_protected")
-                } else {
-                    None
-                }
+    pub fn iter(mut self) -> impl Iterator<Item = &'static str> {
+        std::iter::from_fn(move || {
+            if self.is_static() {
+                self &= !VarTypeFlags::STATIC;
+                Some("static")
+            } else if self.is_const() {
+                self &= !VarTypeFlags::CONST;
+                Some("const")
+            } else if self.is_tmp() {
+                self &= !VarTypeFlags::TMP;
+                Some("tmp")
+            } else if self.is_final() {
+                self &= !VarTypeFlags::FINAL;
+                Some("final")
+            } else if self.is_private() {
+                self &= !VarTypeFlags::PRIVATE;
+                Some("SpacemanDMM_private")
+            } else if self.is_protected() {
+                self &= !VarTypeFlags::PROTECTED;
+                Some("SpacemanDMM_protected")
+            } else {
+                None
             }
-        }
-
-        VarTypeFlagsIter(*self)
+        })
     }
 }
 

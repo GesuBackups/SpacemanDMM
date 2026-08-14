@@ -53,34 +53,28 @@ impl Define {
     }
 
     /// Pretty-print the macro's name, parameters if applicable, and substitution.
-    pub fn display_with_name<'a>(&'a self, name: &'a str) -> impl fmt::Display + 'a {
-        NameAndDefine(name, self)
-    }
-}
+    pub fn display_with_name(&self, name: &str) -> impl fmt::Display {
+        fmt::from_fn(move |fmt| {
+            write!(fmt, "#define {}", name)?;
 
-struct NameAndDefine<'a>(&'a str, &'a Define);
-
-impl<'a> fmt::Display for NameAndDefine<'a> {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        write!(fmt, "#define {}", self.0)?;
-
-        if !self.1.params.is_empty() {
-            fmt.write_str("(")?;
-            for (i, name) in self.1.params.iter().enumerate() {
-                if i > 0 {
-                    fmt.write_str(", ")?;
+            if !self.params.is_empty() {
+                fmt.write_str("(")?;
+                for (i, name) in self.params.iter().enumerate() {
+                    if i > 0 {
+                        fmt.write_str(", ")?;
+                    }
+                    fmt.write_str(name)?;
                 }
-                fmt.write_str(name)?;
+                if self.variadic {
+                    fmt.write_str("...")?;
+                }
+                fmt.write_str(")")?;
             }
-            if self.1.variadic {
-                fmt.write_str("...")?;
-            }
-            fmt.write_str(")")?;
-        }
 
-        fmt.write_str("\n")?;
+            fmt.write_str("\n")?;
 
-        crate::pretty_print(fmt, self.1.subst.iter(), false)
+            crate::pretty_print(fmt, self.subst.iter(), false)
+        })
     }
 }
 
