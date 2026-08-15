@@ -5,6 +5,7 @@ members = [
     "crates/dap-types",
     "crates/dm-langserver",
     "crates/dmdoc",
+    "crates/dmi",
     "crates/dmm-tools",
     "crates/dmm-tools-cli",
     "crates/dreamchecker",
