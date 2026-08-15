@@ -793,10 +793,10 @@ impl<'o> WalkProc<'o> {
                 }
             },
             Follow::ProcReference(name) => {
-                if let Some(ty) = lhs.basic_type() {
-                    if let Some(decl) = ty.get_proc_declaration(name) {
-                        self.tab.use_symbol(decl.id, location);
-                    }
+                if let Some(ty) = lhs.basic_type()
+                    && let Some(decl) = ty.get_proc_declaration(name)
+                {
+                    self.tab.use_symbol(decl.id, location);
                 }
                 StaticType::None
             },
@@ -843,16 +843,14 @@ impl<'o> WalkProc<'o> {
                 lhs,
                 rhs,
             } = arg
+                && let Some(term) = lhs.as_term()
+                && let Some(_name) = term.as_kwarg_key()
             {
-                if let Some(term) = lhs.as_term() {
-                    if let Some(_name) = term.as_kwarg_key() {
-                        // Don't visit_expression the kwarg key.
-                        argument_value = rhs;
+                // Don't visit_expression the kwarg key.
+                argument_value = rhs;
 
-                        // TODO: register a usage of the kwarg symbol here.
-                        // Recurse to children too?
-                    }
-                }
+                // TODO: register a usage of the kwarg symbol here.
+                // Recurse to children too?
             }
 
             self.visit_expression(location, argument_value, None);
@@ -869,13 +867,11 @@ impl<'o> WalkProc<'o> {
                 lhs,
                 rhs,
             } = arg
+                && let Some(term) = lhs.as_term()
+                && let Some(_name) = term.as_kwarg_key()
             {
-                if let Some(term) = lhs.as_term() {
-                    if let Some(_name) = term.as_kwarg_key() {
-                        // Don't visit_expression the kwarg key.
-                        argument_value = rhs;
-                    }
-                }
+                // Don't visit_expression the kwarg key.
+                argument_value = rhs;
             }
 
             self.visit_expression(location, argument_value, None);

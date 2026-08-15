@@ -205,15 +205,15 @@ fn get_proc<'o>(
     }
     let typename = bits.join("/");
 
-    if let Some(ty) = objtree.find(&typename) {
-        if let Some(ty_proc) = ty.get().procs.get(procname) {
-            // Don't consider (most) builtins against the override_id count.
-            return ty_proc
-                .value
-                .iter()
-                .skip_while(|pv| pv.location.is_builtins() && !STDDEF_PROCS.contains(&proc_ref))
-                .nth(override_id);
-        }
+    if let Some(ty) = objtree.find(&typename)
+        && let Some(ty_proc) = ty.get().procs.get(procname)
+    {
+        // Don't consider (most) builtins against the override_id count.
+        return ty_proc
+            .value
+            .iter()
+            .skip_while(|pv| pv.location.is_builtins() && !STDDEF_PROCS.contains(&proc_ref))
+            .nth(override_id);
     }
     None
 }
@@ -981,20 +981,20 @@ impl Debugger {
                     if let Some(proc) = self.db.get_proc(&ex_frame.proc, ex_frame.override_id) {
                         if proc.location.is_builtins() {
                             // `stddef.dm` proc.
-                            if let Some(stddef_dm_info) = self.stddef_dm_info.as_ref() {
-                                if let Some(proc) = get_proc(
+                            if let Some(stddef_dm_info) = self.stddef_dm_info.as_ref()
+                                && let Some(proc) = get_proc(
                                     &stddef_dm_info.objtree,
                                     &ex_frame.proc,
                                     ex_frame.override_id,
-                                ) {
-                                    dap_frame.source = Some(Source {
-                                        name: Some("stddef.dm".to_owned()),
-                                        sourceReference: Some(STDDEF_SOURCE_REFERENCE),
-                                        ..Default::default()
-                                    });
-                                    dap_frame.line = i64::from(proc.location.line);
-                                    //dap_frame.column = i64::from(proc.location.column);
-                                }
+                                )
+                            {
+                                dap_frame.source = Some(Source {
+                                    name: Some("stddef.dm".to_owned()),
+                                    sourceReference: Some(STDDEF_SOURCE_REFERENCE),
+                                    ..Default::default()
+                                });
+                                dap_frame.line = i64::from(proc.location.line);
+                                //dap_frame.column = i64::from(proc.location.column);
                             }
                         } else {
                             // Normal proc.
@@ -1066,20 +1066,20 @@ impl Debugger {
                     {
                         if proc.location.is_builtins() {
                             // `stddef.dm` proc.
-                            if let Some(stddef_dm_info) = self.stddef_dm_info.as_ref() {
-                                if let Some(proc) = get_proc(
+                            if let Some(stddef_dm_info) = self.stddef_dm_info.as_ref()
+                                && let Some(proc) = get_proc(
                                     &stddef_dm_info.objtree,
                                     &aux_proc.path,
                                     aux_proc.override_id as usize,
-                                ) {
-                                    dap_frame.source = Some(Source {
-                                        name: Some("stddef.dm".to_owned()),
-                                        sourceReference: Some(STDDEF_SOURCE_REFERENCE),
-                                        ..Default::default()
-                                    });
-                                    dap_frame.line = i64::from(proc.location.line);
-                                    //dap_frame.column = i64::from(proc.location.column);
-                                }
+                                )
+                            {
+                                dap_frame.source = Some(Source {
+                                    name: Some("stddef.dm".to_owned()),
+                                    sourceReference: Some(STDDEF_SOURCE_REFERENCE),
+                                    ..Default::default()
+                                });
+                                dap_frame.line = i64::from(proc.location.line);
+                                //dap_frame.column = i64::from(proc.location.column);
                             }
                         } else {
                             // Normal proc.
@@ -1506,10 +1506,10 @@ impl Debugger {
 
     fn Source(&mut self, params: P<Source>) -> R<Source> {
         let mut source_reference = params.sourceReference;
-        if let Some(source) = params.source {
-            if let Some(reference) = source.sourceReference {
-                source_reference = reference;
-            }
+        if let Some(source) = params.source
+            && let Some(reference) = source.sourceReference
+        {
+            source_reference = reference;
         }
 
         if source_reference != STDDEF_SOURCE_REFERENCE {

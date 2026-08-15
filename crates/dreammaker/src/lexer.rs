@@ -930,19 +930,19 @@ impl<'ctx> Lexer<'ctx> {
             // Try to parse it as a float instead - this will catch numbers
             // that are formatted like integers but are out of the range of our
             // integer type.
-            if radix == 10 {
-                if let Ok(val) = f32::from_str(&buf) {
-                    let val_str = val.to_string();
-                    if val_str != buf {
-                        self.error(format!(
-                            "precision loss of integer constant: \"{buf}\" to {val}"
-                        ))
-                        .with_severity(Severity::Warning)
-                        .with_errortype("integer_precision_loss")
-                        .register(self.context);
-                    }
-                    return Token::Float(val);
+            if radix == 10
+                && let Ok(val) = f32::from_str(&buf)
+            {
+                let val_str = val.to_string();
+                if val_str != buf {
+                    self.error(format!(
+                        "precision loss of integer constant: \"{buf}\" to {val}"
+                    ))
+                    .with_severity(Severity::Warning)
+                    .with_errortype("integer_precision_loss")
+                    .register(self.context);
                 }
+                return Token::Float(val);
             }
             self.context.register_error(self.error(format!(
                 "bad base-{radix} integer \"{buf}\": {original_error}"

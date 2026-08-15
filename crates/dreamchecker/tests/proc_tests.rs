@@ -58,11 +58,11 @@ fn return_type_failure() {
     check_errors_match(code, RETURN_TYPE_FAILURE_ERRORS);
 }
 
-pub const EMPTY_LIST_FIND_ERRORS: &[(u32, u16, &str)] = &[ (
+pub const EMPTY_LIST_FIND_ERRORS: &[(u32, u16, &str)] = &[(
     3,
     20,
     "list.Find() with no arguments searches for null, write Find(null) if that is intended",
-) ];
+)];
 
 #[test]
 fn empty_list_find_warns() {

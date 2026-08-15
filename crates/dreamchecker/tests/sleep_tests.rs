@@ -41,7 +41,8 @@ fn sleep() {
 /mob/proc/test6()
     set SpacemanDMM_should_not_sleep = TRUE
     spawnthensleepproc()
-"##.trim();
+"##
+    .trim();
     check_errors_match(code, SLEEP_ERRORS);
 }
 
@@ -75,7 +76,8 @@ fn sleep2() {
     sleep(1)
 /mob/living/thing()
     . = ..()
-"##.trim();
+"##
+    .trim();
     check_errors_match(code, SLEEP_ERRORS2);
 }
 
@@ -145,7 +147,8 @@ fn sleep4() {
 /mob/proc/test2()
     var/client/C = new /client
     C.MeasureText()
-"##.trim();
+"##
+    .trim();
     check_errors_match(code, SLEEP_ERROR4);
 }
 
@@ -171,7 +174,8 @@ fn sleep5() {
 
 /datum/hijack/proxy()
         sleep(1)
-"##.trim();
+"##
+    .trim();
     check_errors_match(code, SLEEP_ERROR5);
 }
 
@@ -199,7 +203,8 @@ fn sleep6() {
 
 /proc/stoplag()
     sleep(1)
-"##.trim();
+"##
+    .trim();
     check_errors_match(code, SLEEP_ERROR6);
 }
 
@@ -220,7 +225,8 @@ fn sleep7() {
 /proc/nosleep2()
     set SpacemanDMM_should_not_sleep = 1
     sleep_caller()
-"##.trim();
+"##
+    .trim();
     let context = parse_a_file_for_test(code);
     let errors = context.errors();
     assert_eq!(1, errors.len());
@@ -271,7 +277,8 @@ fn sleep9() {
 
 /datum/override2/CommonProc()
     sleep(1)
-"##.trim();
+"##
+    .trim();
     check_errors_match(code, &[]);
 }
 
@@ -294,6 +301,7 @@ fn sleep10() {
 
 /obj/machinery/dna_scannernew/container_resist_act()
     sleep(1)
-"##.trim();
+"##
+    .trim();
     check_errors_match(code, SLEEP_ERROR10);
 }

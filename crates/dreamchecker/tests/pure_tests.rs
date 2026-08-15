@@ -23,7 +23,8 @@ fn pure() {
 /mob/proc/test2()
     set SpacemanDMM_should_be_pure = TRUE
     bar()
-"##.trim();
+"##
+    .trim();
     check_errors_match(code, PURE_ERRORS);
 }
 
@@ -43,6 +44,7 @@ fn pure2() {
     test()
 /mob/proc/test3()
     return test()
-"##.trim();
+"##
+    .trim();
     check_errors_match(code, PURE2_ERRORS);
 }

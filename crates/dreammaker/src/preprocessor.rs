@@ -1007,27 +1007,25 @@ impl<'ctx> Preprocessor<'ctx> {
                             subst,
                         };
                         // DEBUG can only be defined in the root .dme file
-                        if define_name != "DEBUG" || self.in_environment() {
-                            if let Some(previous_loc) = self
+                        if (define_name != "DEBUG" || self.in_environment())
+                            && define_name != "FILE_DIR"
+                            && let Some(previous_loc) = self
                                 .defines
                                 .insert(define_name.clone(), (define_name_loc, define))
-                            {
-                                // DM doesn't issue a warning for this, but it's usually a mistake, so let's.
-                                // FILE_DIR is handled specially and sometimes makes sense to define multiple times.
-                                if define_name != "FILE_DIR" {
-                                    DMError::new(
-                                        define_name_loc,
-                                        format!("macro redefined: {define_name}"),
-                                    )
-                                    .with_severity(Severity::Warning)
-                                    .with_note(
-                                        previous_loc,
-                                        format!("previous definition of {define_name}"),
-                                    )
-                                    .with_errortype("macro_redefined")
-                                    .register(self.context);
-                                }
-                            }
+                        {
+                            // DM doesn't issue a warning for this, but it's usually a mistake, so let's.
+                            // FILE_DIR is handled specially and sometimes makes sense to define multiple times.
+                            DMError::new(
+                                define_name_loc,
+                                format!("macro redefined: {define_name}"),
+                            )
+                            .with_severity(Severity::Warning)
+                            .with_note(
+                                previous_loc,
+                                format!("previous definition of {define_name}"),
+                            )
+                            .with_errortype("macro_redefined")
+                            .register(self.context);
                         }
                     },
                     "undef" if disabled => {},
@@ -1158,19 +1156,15 @@ impl<'ctx> Preprocessor<'ctx> {
                     token: Token::Punct(Punctuation::LParen),
                     ..
                 }) = self.output.back()
+                    && let Some(idx) = self.output.len().checked_sub(2)
+                    && let Some(LocatedToken {
+                        token: Token::Ident(identname, _),
+                        ..
+                    }) = self.output.get(idx)
+                    && identname.as_str() == "defined"
                 {
-                    if let Some(idx) = self.output.len().checked_sub(2) {
-                        if let Some(LocatedToken {
-                            token: Token::Ident(identname, _),
-                            ..
-                        }) = self.output.get(idx)
-                        {
-                            if identname.as_str() == "defined" {
-                                self.push_output(Token::Ident(ident.to_owned(), whitespace));
-                                return Ok(());
-                            }
-                        }
-                    }
+                    self.push_output(Token::Ident(ident.to_owned(), whitespace));
+                    return Ok(());
                 }
 
                 // if it's a define, perform the substitution

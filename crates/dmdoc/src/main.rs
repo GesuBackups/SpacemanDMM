@@ -234,18 +234,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let entry = entry?;
             let path = entry.path();
 
-            if let Some(buf) = read_as_markdown(path)? {
-                if Some(path) != index_path.as_ref().map(Path::new) {
-                    let module = module_entry(&mut modules1, path);
-                    module.items_wip.push((
-                        0,
-                        ModuleItem::DocComment(DocComment {
-                            kind: CommentKind::Block,
-                            target: DocTarget::EnclosingItem,
-                            text: buf,
-                        }),
-                    ));
-                }
+            if let Some(buf) = read_as_markdown(path)?
+                && Some(path) != index_path.as_ref().map(Path::new)
+            {
+                let module = module_entry(&mut modules1, path);
+                module.items_wip.push((
+                    0,
+                    ModuleItem::DocComment(DocComment {
+                        kind: CommentKind::Block,
+                        target: DocTarget::EnclosingItem,
+                        text: buf,
+                    }),
+                ));
             }
         }
     }
@@ -320,10 +320,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
 
         let parent_type = ty.parent_type();
-        if parent_type != ty.parent_path() {
-            if let Some(parent) = parent_type {
-                parsed_type.parent_type = Some(&parent.get().path);
-            }
+        if parent_type != ty.parent_path()
+            && let Some(parent) = parent_type
+        {
+            parsed_type.parent_type = Some(&parent.get().path);
         }
 
         for (name, var) in ty.get().vars.iter() {
@@ -332,11 +332,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let mut parent = None;
                 let mut next = ty.parent_type_without_root();
                 while let Some(current) = next {
-                    if let Some(entry) = current.vars.get(name) {
-                        if !entry.value.docs.is_empty() {
-                            parent = Some(current.path[1..].to_owned());
-                            break;
-                        }
+                    if let Some(entry) = current.vars.get(name)
+                        && !entry.value.docs.is_empty()
+                    {
+                        parent = Some(current.path[1..].to_owned());
+                        break;
                     }
                     next = current.parent_type_without_root();
                 }
@@ -405,11 +405,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let mut parent = None;
                 let mut next = ty.parent_type_without_root();
                 while let Some(current) = next {
-                    if let Some(entry) = current.procs.get(name) {
-                        if !entry.main_value().docs.is_empty() {
-                            parent = Some(current.path[1..].to_owned());
-                            break;
-                        }
+                    if let Some(entry) = current.procs.get(name)
+                        && !entry.main_value().docs.is_empty()
+                    {
+                        parent = Some(current.path[1..].to_owned());
+                        break;
                     }
                     next = current.parent_type_without_root();
                 }
@@ -816,11 +816,11 @@ fn find_return_type(code: &dm::ast::Block) -> Option<Vec<Ident>> {
             value,
         } = &stmt.elem
         {
-            if name.as_str() == "SpacemanDMM_return_type" {
-                if let Some(dm::ast::Term::Prefab(fab)) = value.as_term() {
-                    let bits: Vec<_> = fab.path.iter().map(|(_, name)| name.to_owned()).collect();
-                    return Some(bits);
-                }
+            if name.as_str() == "SpacemanDMM_return_type"
+                && let Some(dm::ast::Term::Prefab(fab)) = value.as_term()
+            {
+                let bits: Vec<_> = fab.path.iter().map(|(_, name)| name.to_owned()).collect();
+                return Some(bits);
             }
         } else {
             break;
@@ -951,30 +951,30 @@ fn broken_link_fixer<'str>(
         // for example if it's overridden in the DM code but not re-documented.
         if let Some(ty) = objtree.find(ty_path) {
             if let Some(var_name) = var_name {
-                if let Some(var) = ty.get_value(var_name) {
-                    if var.location.is_builtins() {
-                        external_url = Some(match var.docs.builtin_docs {
-                            BuiltinDocs::None => {
-                                format!("{}{}/var/{}", DM_REFERENCE_BASE, ty.path, var_name)
-                            },
-                            BuiltinDocs::ReferenceHash(hash) => {
-                                format!("{DM_REFERENCE_BASE}{hash}")
-                            },
-                        })
-                    }
+                if let Some(var) = ty.get_value(var_name)
+                    && var.location.is_builtins()
+                {
+                    external_url = Some(match var.docs.builtin_docs {
+                        BuiltinDocs::None => {
+                            format!("{}{}/var/{}", DM_REFERENCE_BASE, ty.path, var_name)
+                        },
+                        BuiltinDocs::ReferenceHash(hash) => {
+                            format!("{DM_REFERENCE_BASE}{hash}")
+                        },
+                    })
                 }
             } else if let Some(proc_name) = proc_name {
-                if let Some(proc) = ty.get_proc(proc_name) {
-                    if proc.location.is_builtins() {
-                        external_url = Some(match proc.docs.builtin_docs {
-                            BuiltinDocs::None => {
-                                format!("{}{}/proc/{}", DM_REFERENCE_BASE, ty.path, proc_name)
-                            },
-                            BuiltinDocs::ReferenceHash(hash) => {
-                                format!("{DM_REFERENCE_BASE}{hash}")
-                            },
-                        })
-                    }
+                if let Some(proc) = ty.get_proc(proc_name)
+                    && proc.location.is_builtins()
+                {
+                    external_url = Some(match proc.docs.builtin_docs {
+                        BuiltinDocs::None => {
+                            format!("{}{}/proc/{}", DM_REFERENCE_BASE, ty.path, proc_name)
+                        },
+                        BuiltinDocs::ReferenceHash(hash) => {
+                            format!("{DM_REFERENCE_BASE}{hash}")
+                        },
+                    })
                 }
             } else if ty.location.is_builtins() {
                 external_url = Some(match ty.docs.builtin_docs {

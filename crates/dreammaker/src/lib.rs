@@ -104,10 +104,10 @@ where
                     }
                     write!(w, "{}", &SPACES[..spaces % SPACES.len()])?;
                     needs_newline = false;
-                } else if let Some(prev) = prev.as_ref() {
-                    if other.separate_from(prev.as_ref()) {
-                        write!(w, " ")?;
-                    }
+                } else if let Some(prev) = prev.as_ref()
+                    && other.separate_from(prev.as_ref())
+                {
+                    write!(w, " ")?;
                 }
                 write!(w, "{other}")?;
                 prev = Some(token);

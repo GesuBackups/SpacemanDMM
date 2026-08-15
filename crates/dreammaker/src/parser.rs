@@ -882,10 +882,10 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
         }
 
         // parse operator overloading definitions
-        if last_part == "operator" {
-            if let Some(operator_x) = self.try_read_operator_name()? {
-                *last_part = crate::ast::Ident::from_static(operator_x);
-            }
+        if last_part == "operator"
+            && let Some(operator_x) = self.try_read_operator_name()?
+        {
+            *last_part = crate::ast::Ident::from_static(operator_x);
         }
 
         let var_suffix = if var_type.is_some() {
@@ -1845,16 +1845,15 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
             let result = leading!(self.simple_statement(false, vars));
 
             // check for a label `ident:`
-            if let Statement::Expr(ref expr) = result {
-                if let Some(Term::Ident(name)) = expr.as_term() {
-                    if let Some(()) = self.exact(Token::Punct(Punctuation::Colon))? {
-                        // it's a label! check for a block
-                        return spanned(Statement::Label {
-                            name: name.to_owned(),
-                            block: require!(self.block(loop_ctx)),
-                        });
-                    }
-                }
+            if let Statement::Expr(ref expr) = result
+                && let Some(Term::Ident(name)) = expr.as_term()
+                && let Some(()) = self.exact(Token::Punct(Punctuation::Colon))?
+            {
+                // it's a label! check for a block
+                return spanned(Statement::Label {
+                    name: name.to_owned(),
+                    block: require!(self.block(loop_ctx)),
+                });
             }
 
             require!(self.statement_terminator());
@@ -2160,10 +2159,10 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
             };
 
             // If we're a sub-expression within a ternary expression, don't try to read further than our parent's precedence would allow
-            if let Some(strength) = strength {
-                if info.strength > strength {
-                    break;
-                }
+            if let Some(strength) = strength
+                && info.strength > strength
+            {
+                break;
             }
 
             self.take();

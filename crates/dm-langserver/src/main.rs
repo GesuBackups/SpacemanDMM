@@ -128,38 +128,32 @@ impl ClientCaps {
     fn parse(caps: &lsp_types::ClientCapabilities) -> ClientCaps {
         let mut this = ClientCaps::default();
         if let Some(ref text_document) = caps.text_document {
-            if let Some(ref signature_help) = text_document.signature_help {
-                if let Some(ref signature_information) = signature_help.signature_information {
-                    if let Some(ref parameter_information) =
-                        signature_information.parameter_information
-                    {
-                        if let Some(label_offset_support) =
-                            parameter_information.label_offset_support
-                        {
-                            this.label_offset_support = label_offset_support;
-                        }
-                    }
-                }
+            if let Some(ref signature_help) = text_document.signature_help
+                && let Some(ref signature_information) = signature_help.signature_information
+                && let Some(ref parameter_information) = signature_information.parameter_information
+                && let Some(label_offset_support) = parameter_information.label_offset_support
+            {
+                this.label_offset_support = label_offset_support;
             }
 
-            if let Some(ref publish_diagnostics) = text_document.publish_diagnostics {
-                if let Some(related_info) = publish_diagnostics.related_information {
-                    this.related_info = related_info;
-                }
+            if let Some(ref publish_diagnostics) = text_document.publish_diagnostics
+                && let Some(related_info) = publish_diagnostics.related_information
+            {
+                this.related_info = related_info;
             }
         }
-        if let Some(ref experimental) = caps.experimental {
-            if let Some(dreammaker) = experimental.get("dreammaker") {
-                if let Some(object_tree) = dreammaker.get("objectTree") {
-                    if let Some(value) = object_tree.as_bool() {
-                        this.object_tree = value;
-                    }
-                }
-                if let Some(object_tree_2) = dreammaker.get("objectTree2") {
-                    if let Some(value) = object_tree_2.as_bool() {
-                        this.object_tree_2 = value;
-                    }
-                }
+        if let Some(ref experimental) = caps.experimental
+            && let Some(dreammaker) = experimental.get("dreammaker")
+        {
+            if let Some(object_tree) = dreammaker.get("objectTree")
+                && let Some(value) = object_tree.as_bool()
+            {
+                this.object_tree = value;
+            }
+            if let Some(object_tree_2) = dreammaker.get("objectTree2")
+                && let Some(value) = object_tree_2.as_bool()
+            {
+                this.object_tree_2 = value;
             }
         }
         this
@@ -882,30 +876,29 @@ impl Engine {
     {
         // local variables
         for (span, annotation) in iter.clone() {
-            if let Annotation::LocalVarScope(var_type, name) = annotation {
-                if name == var_name {
-                    return UnscopedVar::Local {
-                        loc: span.start,
-                        var_type,
-                    };
-                }
+            if let Annotation::LocalVarScope(var_type, name) = annotation
+                && name == var_name
+            {
+                return UnscopedVar::Local {
+                    loc: span.start,
+                    var_type,
+                };
             }
         }
 
         // proc parameters
         let ty = ty.unwrap_or_else(|| self.objtree.root());
-        if let Some((proc_name, idx)) = proc_name {
-            if let Some(proc) = ty.get().procs.get(proc_name) {
-                if let Some(value) = proc.value.get(idx) {
-                    for param in value.parameters.iter() {
-                        if param.name == var_name {
-                            return UnscopedVar::Parameter {
-                                ty,
-                                proc: proc_name,
-                                param,
-                            };
-                        }
-                    }
+        if let Some((proc_name, idx)) = proc_name
+            && let Some(proc) = ty.get().procs.get(proc_name)
+            && let Some(value) = proc.value.get(idx)
+        {
+            for param in value.parameters.iter() {
+                if param.name == var_name {
+                    return UnscopedVar::Parameter {
+                        ty,
+                        proc: proc_name,
+                        param,
+                    };
                 }
             }
         }
@@ -1043,12 +1036,11 @@ impl Engine {
                 let (ty, _) = self.find_type_context(&iter);
                 let mut next = ty.or_else(|| Some(self.objtree.root()));
                 while let Some(ty) = next {
-                    if let Some(proc) = ty.procs.get(proc_name) {
-                        if let Some(ref decl) = proc.declaration {
+                    if let Some(proc) = ty.procs.get(proc_name)
+                        && let Some(ref decl) = proc.declaration {
                             symbol_id = Some(decl.id);
                             break;
                         }
-                    }
                     next = ty.parent_type();
                 }
             },
@@ -1072,11 +1064,11 @@ impl Engine {
             Annotation::ScopedCall(priors, proc_name) => {
                 let mut next = self.find_scoped_type(&iter, priors);
                 while let Some(ty) = next {
-                    if let Some(proc) = ty.procs.get(proc_name) {
-                        if let Some(ref decl) = proc.declaration {
-                            symbol_id = Some(decl.id);
-                            break;
-                        }
+                    if let Some(proc) = ty.procs.get(proc_name)
+                        && let Some(ref decl) = proc.declaration
+                    {
+                        symbol_id = Some(decl.id);
+                        break;
                     }
                     next = ty.parent_type_without_root();
                 }
@@ -1084,11 +1076,11 @@ impl Engine {
             Annotation::ScopedVar(priors, var_name) => {
                 let mut next = self.find_scoped_type(&iter, priors);
                 while let Some(ty) = next {
-                    if let Some(var) = ty.vars.get(var_name) {
-                        if let Some(ref decl) = var.declaration {
-                            symbol_id = Some(decl.id);
-                            break;
-                        }
+                    if let Some(var) = ty.vars.get(var_name)
+                        && let Some(ref decl) = var.declaration
+                    {
+                        symbol_id = Some(decl.id);
+                        break;
                     }
                     next = ty.parent_type_without_root();
                 }
@@ -1503,46 +1495,46 @@ impl Engine {
                 continue;
             }
             for (var_name, tv) in ty.vars.iter() {
-                if let Some(decl) = tv.declaration.as_ref() {
-                    if query.matches_var(var_name) {
-                        results.push(SymbolInformation {
-                            name: var_name.to_string(),
-                            kind: SymbolKind::FIELD,
-                            location: self.convert_location(
-                                decl.location,
-                                &tv.value.docs,
-                                &[&ty.path, "/var/", var_name],
-                            )?,
-                            container_name: Some(ty.path.clone()),
-                            tags: None,
-                            deprecated: None,
-                        });
-                    }
+                if let Some(decl) = tv.declaration.as_ref()
+                    && query.matches_var(var_name)
+                {
+                    results.push(SymbolInformation {
+                        name: var_name.to_string(),
+                        kind: SymbolKind::FIELD,
+                        location: self.convert_location(
+                            decl.location,
+                            &tv.value.docs,
+                            &[&ty.path, "/var/", var_name],
+                        )?,
+                        container_name: Some(ty.path.clone()),
+                        tags: None,
+                        deprecated: None,
+                    });
                 }
             }
 
             for (proc_name, pv) in ty.procs.iter() {
-                if let Some(decl) = pv.declaration.as_ref() {
-                    if query.matches_proc(proc_name, decl.kind) {
-                        results.push(SymbolInformation {
-                            name: proc_name.to_string(),
-                            kind: if ty.is_root() {
-                                SymbolKind::FUNCTION
-                            } else if is_constructor_name(proc_name.as_str()) {
-                                SymbolKind::CONSTRUCTOR
-                            } else {
-                                SymbolKind::METHOD
-                            },
-                            location: self.convert_location(
-                                decl.location,
-                                &pv.main_value().docs,
-                                &[&ty.path, "/proc/", proc_name],
-                            )?,
-                            container_name: Some(ty.path.clone()),
-                            tags: None,
-                            deprecated: None,
-                        });
-                    }
+                if let Some(decl) = pv.declaration.as_ref()
+                    && query.matches_proc(proc_name, decl.kind)
+                {
+                    results.push(SymbolInformation {
+                        name: proc_name.to_string(),
+                        kind: if ty.is_root() {
+                            SymbolKind::FUNCTION
+                        } else if is_constructor_name(proc_name.as_str()) {
+                            SymbolKind::CONSTRUCTOR
+                        } else {
+                            SymbolKind::METHOD
+                        },
+                        location: self.convert_location(
+                            decl.location,
+                            &pv.main_value().docs,
+                            &[&ty.path, "/proc/", proc_name],
+                        )?,
+                        container_name: Some(ty.path.clone()),
+                        tags: None,
+                        deprecated: None,
+                    });
                 }
             }
         }
@@ -1683,14 +1675,9 @@ impl Engine {
                     let (ty, proc_name) = self.find_type_context(&iter);
                     if let UnscopedVar::Variable { ty, .. } =
                         self.find_unscoped_var(&iter, ty, proc_name, var_name)
+                        && let Some(_decl) = ty.get_var_declaration(var_name)
                     {
-                        if let Some(_decl) = ty.get_var_declaration(var_name) {
-                            results.append(&mut self.construct_var_hover(
-                                var_name,
-                                Some(ty),
-                                false,
-                            )?);
-                        }
+                        results.append(&mut self.construct_var_hover(var_name, Some(ty), false)?);
                     }
                 },
                 Annotation::UnscopedCall(proc_name) if symbol_id.is_some() => {
@@ -1888,11 +1875,11 @@ impl Engine {
             Annotation::ScopedVar(priors, var_name) => {
                 let mut next = self.find_scoped_type(&iter, priors);
                 while let Some(ty) = next {
-                    if let Some(var) = ty.get().vars.get(var_name) {
-                        if let Some(ref decl) = var.declaration {
-                            type_path = decl.var_type.type_path.as_slice();
-                            break;
-                        }
+                    if let Some(var) = ty.get().vars.get(var_name)
+                        && let Some(ref decl) = var.declaration
+                    {
+                        type_path = decl.var_type.type_path.as_slice();
+                        break;
                     }
                     next = ty.parent_type_without_root();
                 }
@@ -2099,10 +2086,10 @@ impl Engine {
                     break;
                 }
                 next = ty.parent_type();
-                if let Some(ref n) = next {
-                    if n.is_root() && !priors.is_empty() {
-                        break;
-                    }
+                if let Some(ref n) = next
+                    && n.is_root() && !priors.is_empty()
+                {
+                    break;
                 }
             }
         }}
@@ -2145,10 +2132,10 @@ impl Engine {
             let mut result = Vec::new();
 
             loop {
-                if let Some((range, _)) = iter.peek() {
-                    if range.start >= section_end {
-                        break;
-                    }
+                if let Some((range, _)) = iter.peek()
+                    && range.start >= section_end
+                {
+                    break;
                 }
 
                 let Some((child_range, annotation)) = iter.next() else {
@@ -2292,16 +2279,16 @@ impl Engine {
 
             if is_region_marker(line, "#region") {
                 region_starts.push(line_number);
-            } else if is_region_marker(line, "#endregion") {
-                if let Some(start_line) = region_starts.pop() {
-                    ranges.push(FoldingRange {
-                        start_line,
-                        end_line: line_number,
-                        start_character: None,
-                        end_character: None,
-                        kind: Some(FoldingRangeKind::Region),
-                    });
-                }
+            } else if is_region_marker(line, "#endregion")
+                && let Some(start_line) = region_starts.pop()
+            {
+                ranges.push(FoldingRange {
+                    start_line,
+                    end_line: line_number,
+                    start_character: None,
+                    end_character: None,
+                    kind: Some(FoldingRangeKind::Region),
+                });
             }
         }
 

@@ -2,10 +2,10 @@ extern crate dreammaker as dm;
 
 use core::panic;
 
+use dm::Preprocessor;
 use dm::ast::*;
 use dm::constants::*;
 use dm::objtree::ObjectTree;
-use dm::Preprocessor;
 use dm::*;
 
 fn with_code<F: FnOnce(Context, ObjectTree)>(code: &'static str, f: F) {
