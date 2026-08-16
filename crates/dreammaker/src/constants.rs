@@ -505,7 +505,7 @@ pub(crate) fn evaluate_all(context: &Context, tree: &mut ObjectTree) {
                 Ok(ConstLookup::Continue(_)) => {
                     context.register_error(DMError::new(
                         tree[ty].vars[&key].value.location,
-                        format!("undefined var '{}' on type '{}'", key, tree[ty].path,),
+                        format!("undefined var '{}' on type '{}'", key, tree[ty].path),
                     ));
                 },
             }
@@ -669,11 +669,7 @@ impl<'a> ConstantFolder<'a> {
             // If it's a reference to a type-hinted value, look up the field in
             // its const variables (but not non-const variables).
             (Constant::Null(Some(type_hint)), Follow::Field(_, field_name)) => {
-                let mut full_path = String::new();
-                for each in type_hint.iter() {
-                    full_path.push('/');
-                    full_path.push_str(each);
-                }
+                let full_path = type_hint.to_string();
                 match self
                     .tree
                     .as_mut()
@@ -828,65 +824,56 @@ impl<'a> ConstantFolder<'a> {
                 "arcsin" => self.trig_op(args, f32::asin)?,
                 "arccos" => self.trig_op(args, f32::acos)?,
                 "rgb" => Constant::String(self.rgb(args)?.into()),
-                "defined" if self.defines.is_some() => {
-                    let defines = self.defines.unwrap(); // annoying, but keeps the match clean
-                    if args.len() != 1 {
-                        return Err(self.error(format!(
-                            "malformed defined() call, must have 1 argument and instead has {}",
-                            args.len()
-                        )));
-                    }
-                    match args[0].as_term() {
-                        Some(Term::Ident(ident)) => Constant::from(defines.contains_key(ident)),
-                        _ => {
-                            return Err(self.error(
-                                "malformed defined() call, argument given isn't an Ident.",
-                            ));
-                        },
-                    }
-                },
                 "nameof" => {
-                    if args.len() != 1 {
+                    let [arg] = &args[..] else {
                         return Err(self.error(format!(
                             "malformed nameof() call, must have 1 argument and instead has {}",
                             args.len()
                         )));
-                    }
-                    match args[0].nameof() {
-                        Some(name) => Constant::String(Ident::from_nonstatic(name)),
-                        None => {
-                            return Err(self.error(
-                                "malformed nameof() call, expression appears to have no name",
-                            ));
-                        },
-                    }
+                    };
+                    let Some(name) = arg.nameof() else {
+                        return Err(self
+                            .error("malformed nameof() call, expression appears to have no name"));
+                    };
+                    Constant::String(Ident::from_nonstatic(name))
+                },
+                // preprocessor-only functions
+                "defined" if let Some(defines) = self.defines => {
+                    let [arg] = &args[..] else {
+                        return Err(self.error(format!(
+                            "malformed defined() call, must have 1 argument and instead has {}",
+                            args.len()
+                        )));
+                    };
+                    let Some(Term::Ident(ident)) = arg.as_term() else {
+                        return Err(self.error(
+                            "malformed defined() call, argument given isn't an identifier",
+                        ));
+                    };
+                    Constant::from(defines.contains_key(ident))
                 },
                 "fexists"
                     if self.defines.is_some()
                         && let Some(context) = self.context =>
                 {
-                    if args.len() != 1 {
+                    let [arg] = &args[..] else {
                         return Err(self.error(format!(
                             "malformed fexists() call, must have 1 argument and instead has {}",
                             args.len()
                         )));
-                    }
-                    match args[0].as_term() {
-                        Some(Term::String(passed_path)) => {
-                            let current_file_path = context.file_path(self.location.file);
-                            let Some(current_dir) = current_file_path.parent() else {
-                                return Err(self.error(format!(
-                                    "fexists() file has no parent: {current_file_path:?}"
-                                )));
-                            };
-                            current_dir.join(passed_path.as_str()).exists().into()
-                        },
-                        _ => {
-                            return Err(self.error(
-                                "malformed fexists() call, argument given isn't a string.",
-                            ));
-                        },
-                    }
+                    };
+                    let Some(Term::String(passed_path)) = arg.as_term() else {
+                        return Err(
+                            self.error("malformed fexists() call, argument given isn't a string")
+                        );
+                    };
+                    let current_file_path = context.file_path(self.location.file);
+                    let Some(current_dir) = current_file_path.parent() else {
+                        return Err(self.error(format!(
+                            "fexists() file has no parent: {current_file_path:?}"
+                        )));
+                    };
+                    current_dir.join(passed_path.as_str()).exists().into()
                 },
                 // other functions are no-goes
                 _ => return Err(self.error(format!("non-constant function call: {ident}"))),
@@ -925,20 +912,18 @@ impl<'a> ConstantFolder<'a> {
             Term::Float(v) => Constant::Float(*v),
             Term::Expr(expr) => self.expr(expr, type_hint)?,
             Term::__TYPE__ => {
-                if let Some(obj_tree) = &self.tree {
-                    let typeval = TypeRef::new(obj_tree, self.ty).get();
-                    let pop = Pop::from_path_str(&typeval.path);
-                    Constant::Prefab(Box::new(pop))
-                } else {
-                    return Err(self.error("No type context".to_owned()));
-                }
+                let Some(obj_tree) = &self.tree else {
+                    return Err(self.error("no type context".to_owned()));
+                };
+                let typeval = TypeRef::new(obj_tree, self.ty).get();
+                let pop = Pop::from_path_str(&typeval.path);
+                Constant::Prefab(Box::new(pop))
             },
             Term::__IMPLIED_TYPE__ => {
-                if let Some(lhs_type) = type_hint {
-                    Constant::Prefab(Box::new(Pop::from(lhs_type.clone())))
-                } else {
-                    return Err(self.error("No type hint".to_owned()));
-                }
+                let Some(lhs_type) = type_hint else {
+                    return Err(self.error("no type hint".to_owned()));
+                };
+                Constant::Prefab(Box::new(Pop::from(lhs_type.clone())))
             },
             _ => return Err(self.error("non-constant expression".to_owned())),
         })
@@ -970,25 +955,19 @@ impl<'a> ConstantFolder<'a> {
         }
 
         // Otherwise, resolve it against our object tree, then stringify it.
-        let tree = match self.tree.as_ref() {
-            Some(tree) => tree,
-            None => {
-                return Err(self.error(format!(
-                    "cannot resolve relative type path without an object tree: {}",
-                    prefab.path
-                )));
-            },
+        let Some(tree) = self.tree.as_ref() else {
+            return Err(self.error(format!(
+                "cannot resolve relative type path without an object tree: {}",
+                prefab.path
+            )));
         };
 
         let relative_to = TypeRef::new(tree, self.ty);
-        let found = match relative_to.navigate_path(prefab.path.as_slice()) {
-            Some(found) => found,
-            None => {
-                return Err(self.error(format!(
-                    "could not resolve {} relative to {}",
-                    prefab.path, relative_to
-                )));
-            },
+        let Some(found) = relative_to.navigate_path(prefab.path.as_slice()) else {
+            return Err(self.error(format!(
+                "could not resolve {} relative to {}",
+                prefab.path, relative_to
+            )));
         };
 
         let path = found.to_path();
@@ -1098,40 +1077,39 @@ impl<'a> ConstantFolder<'a> {
         for (value, potential_kwarg_value) in arguments.iter() {
             // Check for kwargs if we're in the right form
             if let Some(kwarg_value) = potential_kwarg_value {
-                if let Some(kwarg) = value.as_str() {
-                    match kwarg {
-                        "r" | "red" => color_args.r = true,
-                        "g" | "green" => color_args.g = true,
-                        "b" | "blue" => color_args.b = true,
-                        "h" | "hue" => color_args.h = true,
-                        "s" | "saturation" => color_args.s = true,
-                        "v" | "value" => color_args.v = true,
-                        "l" | "luminance" => color_args.l = true,
-                        "c" | "chroma" => color_args.c = true,
-                        "y" => color_args.y = true,
-                        "a" | "alpha" => color_args.a = kwarg_value.to_int(),
-                        "space" => match kwarg_value.to_int() {
-                            // Do we have an actual colorspace specified? Set the values.
-                            Some(0) => space = Some(ColorSpace::Rgb),
-                            Some(1) => space = Some(ColorSpace::Hsv),
-                            Some(2) => space = Some(ColorSpace::Hsl),
-                            Some(3) => space = Some(ColorSpace::Hcy),
-                            _ => {
-                                return Err(self.error(format!(
-                                    "malformed rgb() call, bad color space: {kwarg_value}"
-                                )));
-                            },
-                        },
-                        _ => {
-                            return Err(self.error(format!(
-                                "malformed rgb() call, bad kwarg passed: {kwarg}"
-                            )));
-                        },
-                    }
-                } else {
+                let Some(kwarg) = value.as_str() else {
                     return Err(self.error(format!(
                         "malformed rgb() call, kwarg is not string: {value}"
                     )));
+                };
+                match kwarg {
+                    "r" | "red" => color_args.r = true,
+                    "g" | "green" => color_args.g = true,
+                    "b" | "blue" => color_args.b = true,
+                    "h" | "hue" => color_args.h = true,
+                    "s" | "saturation" => color_args.s = true,
+                    "v" | "value" => color_args.v = true,
+                    "l" | "luminance" => color_args.l = true,
+                    "c" | "chroma" => color_args.c = true,
+                    "y" => color_args.y = true,
+                    "a" | "alpha" => color_args.a = kwarg_value.to_int(),
+                    "space" => match kwarg_value.to_int() {
+                        // Do we have an actual colorspace specified? Set the values.
+                        Some(0) => space = Some(ColorSpace::Rgb),
+                        Some(1) => space = Some(ColorSpace::Hsv),
+                        Some(2) => space = Some(ColorSpace::Hsl),
+                        Some(3) => space = Some(ColorSpace::Hcy),
+                        _ => {
+                            return Err(self.error(format!(
+                                "malformed rgb() call, bad color space: {kwarg_value}"
+                            )));
+                        },
+                    },
+                    _ => {
+                        return Err(
+                            self.error(format!("malformed rgb() call, bad kwarg passed: {kwarg}"))
+                        );
+                    },
                 }
             }
         }
@@ -1194,48 +1172,46 @@ impl<'a> ConstantFolder<'a> {
 
             // If we have a secondary value, it's a kwarg, we need to get the actual value. If this fails, it's normal.
             if let Some(kwarg_value) = potential_kwarg_value {
-                if let Some(kwarg) = value.as_str() {
-                    to_check = kwarg_value; // Set the value to actually check to be our associated vaue
-
-                    range = match kwarg {
-                        "r" | "red" | "g" | "green" | "b" | "blue" => 0..=255,
-                        "h" | "hue" => 0..=360,
-                        "s" | "saturation" => 0..=100,
-                        "v" | "value" => 0..=100,
-                        "c" | "chroma" => 0..=100,
-                        "l" | "y" | "luminance" => 0..=100,
-                        "a" | "alpha" => 0..=255,
-                        "space" => continue, // Don't range-check the value of the space
-                        _ => {
-                            return Err(self.error(format!(
-                                "malformed rgb() call, bad kwarg passed: {kwarg}"
-                            )));
-                        },
-                    };
-                } else {
+                let Some(kwarg) = value.as_str() else {
                     return Err(self.error(format!(
                         "malformed rgb() call, kwarg is not string: {value}"
                     )));
-                }
+                };
+                to_check = kwarg_value; // Set the value to actually check to be our associated vaue
+
+                range = match kwarg {
+                    "r" | "red" | "g" | "green" | "b" | "blue" => 0..=255,
+                    "h" | "hue" => 0..=360,
+                    "s" | "saturation" => 0..=100,
+                    "v" | "value" => 0..=100,
+                    "c" | "chroma" => 0..=100,
+                    "l" | "y" | "luminance" => 0..=100,
+                    "a" | "alpha" => 0..=255,
+                    "space" => continue, // Don't range-check the value of the space
+                    _ => {
+                        return Err(
+                            self.error(format!("malformed rgb() call, bad kwarg passed: {kwarg}"))
+                        );
+                    },
+                };
             }
 
-            if let Some(i) = to_check.to_int() {
-                if !range.contains(&i) {
-                    return Err(self
-                        .error(format!(
-                            "malformed rgb() call, {} is not within the valid range ({}..{})",
-                            i,
-                            range.start(),
-                            range.end()
-                        ))
-                        .with_severity(Severity::Warning)
-                        .with_location(self.location));
-                }
-                let clamped = std::cmp::max(::std::cmp::min(i, *range.end()), *range.start());
-                value_vec.push(clamped.into());
-            } else {
+            let Some(i) = to_check.to_int() else {
                 return Err(self.error("malformed rgb() call, value wasn't an int"));
+            };
+            if !range.contains(&i) {
+                return Err(self
+                    .error(format!(
+                        "malformed rgb() call, {} is not within the valid range ({}..{})",
+                        i,
+                        range.start(),
+                        range.end()
+                    ))
+                    .with_severity(Severity::Warning)
+                    .with_location(self.location));
             }
+            let clamped = std::cmp::max(::std::cmp::min(i, *range.end()), *range.start());
+            value_vec.push(clamped.into());
         }
 
         assert!(value_vec.len() >= 3); // Make sure we got 3+ values

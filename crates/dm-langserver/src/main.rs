@@ -2562,7 +2562,7 @@ fn url_to_path(url: &Url) -> Result<PathBuf, jsonrpc::Error> {
 
 fn path_to_url(path: PathBuf) -> Result<Url, jsonrpc::Error> {
     let formatted = path.display().to_string();
-    Url::from_file_path(path).map_err(|_| invalid_request(format!("bad file path: {formatted}",)))
+    Url::from_file_path(path).map_err(|_| invalid_request(format!("bad file path: {formatted}")))
 }
 
 fn is_region_marker(line: &str, marker: &str) -> bool {

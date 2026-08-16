@@ -221,7 +221,7 @@ impl Context {
 
         for note in error.notes().iter() {
             if note.location == error.location {
-                writeln!(w, "- {}", note.description,)?;
+                writeln!(w, "- {}", note.description)?;
             } else if note.location.file == error.location.file {
                 writeln!(
                     w,
@@ -543,7 +543,7 @@ impl fmt::Display for DMError {
         )?;
         for note in self.notes.iter() {
             if note.location == self.location {
-                write!(f, "\n- {}", note.description,)?;
+                write!(f, "\n- {}", note.description)?;
             } else {
                 write!(
                     f,

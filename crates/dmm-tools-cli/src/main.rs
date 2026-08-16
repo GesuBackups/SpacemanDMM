@@ -469,16 +469,8 @@ impl std::str::FromStr for CoordArg {
             .map(|x| x.parse())
             .collect::<Result<Vec<_>, std::num::ParseIntError>>()
         {
-            Ok(ref vec) if vec.len() == 2 => Ok(CoordArg {
-                x: vec[0],
-                y: vec[1],
-                z: 0,
-            }),
-            Ok(ref vec) if vec.len() == 3 => Ok(CoordArg {
-                x: vec[0],
-                y: vec[1],
-                z: vec[2],
-            }),
+            Ok(vec) if let [x, y] = vec[..] => Ok(CoordArg { x, y, z: 0 }),
+            Ok(vec) if let [x, y, z] = vec[..] => Ok(CoordArg { x, y, z }),
             Ok(_) => Err("must specify 2 or 3 coordinates".into()),
             Err(e) => Err(e.to_string()),
         }
@@ -656,7 +648,7 @@ fn render_many(context: &Context, command: RenderManyCommand) -> RenderManyComma
 
                     // Write it to file.
                     let filename =
-                        PathBuf::from(format!("{}_z{}_chunk{}.png", stem, chunk.z, chunk_idx,));
+                        PathBuf::from(format!("{}_z{}_chunk{}.png", stem, chunk.z, chunk_idx));
                     eprintln!("{}/{}: save {}", file_idx, chunk_idx, filename.display());
                     let outfile = output_directory.join(&filename);
                     image.to_file(&outfile).unwrap(); // TODO: error handling

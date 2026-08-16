@@ -926,7 +926,7 @@ impl ObjectTreeBuilder {
                 NodeIndex::new(0)
             } else {
                 let constant_buf;
-                let mut parent_type_buf;
+                let parent_type_buf;
                 let empty_string;
                 let parent_type = if path == "/atom" {
                     "/datum"
@@ -971,11 +971,7 @@ impl ObjectTreeBuilder {
                                 parent_type = s;
                             },
                             Ok(Constant::Prefab(pop)) if pop.vars.is_empty() => {
-                                parent_type_buf = String::new();
-                                for piece in pop.path.iter() {
-                                    parent_type_buf.push('/');
-                                    parent_type_buf.push_str(piece);
-                                }
+                                parent_type_buf = pop.path.to_string();
                                 parent_type = &parent_type_buf;
                             },
                             Ok(other) => {
