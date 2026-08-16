@@ -10,8 +10,7 @@ fn main() {
         .expect("error detecting .dme")
         .expect("no .dme found");
     let pp = dm::Preprocessor::new(&context, env).expect("i/o error opening .dme");
-    let indents = dm::IndentProcessor::new(&context, pp);
-    let mut parser = dm::Parser::new(&context, indents);
+    let mut parser = dm::Parser::new(&context, pp);
     parser.enable_procs();
     parser.parse_object_tree();
 }

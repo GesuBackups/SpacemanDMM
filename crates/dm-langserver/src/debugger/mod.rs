@@ -108,7 +108,7 @@ pub fn debugger_main<I: Iterator<Item = String>>(mut args: I) {
     ctx.autodetect_config(&environment);
     let mut pp = dm::Preprocessor::new(&ctx, environment).unwrap();
     let objtree = {
-        let mut parser = dm::Parser::new(&ctx, dm::IndentProcessor::new(&ctx, &mut pp));
+        let mut parser = dm::Parser::new(&ctx, &mut pp);
         parser.enable_procs();
         Arc::new(parser.parse_object_tree())
     };
@@ -1783,7 +1783,7 @@ impl StddefDmInfo {
     fn new(text: String) -> StddefDmInfo {
         let context = dm::Context::default();
         let pp = dm::Preprocessor::from_buffer(&context, "stddef.dm".into(), &text);
-        let parser = dm::Parser::new(&context, dm::IndentProcessor::new(&context, pp));
+        let parser = dm::Parser::new(&context, pp);
         let objtree = parser.parse_object_tree_without_builtins();
         StddefDmInfo { text, objtree }
     }

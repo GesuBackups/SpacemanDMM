@@ -82,8 +82,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     context.autodetect_config(&environment);
     let mut pp = dm::Preprocessor::new(&context, environment.clone())?;
     let (objtree, module_docs) = {
-        let indents = dm::IndentProcessor::new(&context, &mut pp);
-        let mut parser = dm::Parser::new(&context, indents);
+        let mut parser = dm::Parser::new(&context, &mut pp);
         parser.enable_procs(); // for `set SpacemanDMM_return_type`
         parser.parse_with_module_docs()
     };

@@ -567,10 +567,7 @@ impl Engine {
         // Parse the environment.
         let fatal_errored;
         {
-            let mut parser = dm::Parser::new(
-                &self.context,
-                dm::IndentProcessor::new(&self.context, &mut pp),
-            );
+            let mut parser = dm::Parser::new(&self.context, &mut pp);
             parser.enable_procs();
             let (fatal_errored_2, objtree) = parser.parse_object_tree_2();
             fatal_errored = fatal_errored_2;
@@ -716,8 +713,7 @@ impl Engine {
                     preprocessor.enable_annotations();
                     let mut annotations = AnnotationTree::default();
                     {
-                        let indent = dm::IndentProcessor::new(&self.context, &mut preprocessor);
-                        let parser = dm::Parser::new(&self.context, indent);
+                        let parser = dm::Parser::new(&self.context, &mut preprocessor);
                         parser.parse_annotations_only(&mut annotations);
                     }
                     annotations.merge(preprocessor.take_annotations().unwrap());
@@ -750,8 +746,7 @@ impl Engine {
                     pp.enable_annotations();
                     let mut annotations = AnnotationTree::default();
                     {
-                        let indent = dm::IndentProcessor::new(&self.context, &mut pp);
-                        let mut parser = dm::Parser::new(&self.context, indent);
+                        let mut parser = dm::Parser::new(&self.context, &mut pp);
                         parser.annotate_to(&mut annotations);
                         // Every time anyone types anything the object tree is replaced.
                         // This is probably really inefficient, but it will do until

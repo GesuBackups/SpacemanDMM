@@ -97,7 +97,7 @@ impl Context {
     where
         I: IntoIterator<Item = LocatedToken>,
     {
-        let mut parser = Parser::new(self, iter);
+        let mut parser = Parser::new_direct(self, iter);
         parser.location = location;
         Ok(require!(parser.expression()))
     }
@@ -357,6 +357,21 @@ impl<'ctx, 'an, 'inp> HasLocation for Parser<'ctx, 'an, 'inp> {
 impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
     /// Construct a new parser using the given input stream.
     pub fn new<I: IntoIterator<Item = LocatedToken> + 'inp>(
+        context: &'ctx Context,
+        input: I,
+    ) -> Self
+    where
+        'ctx: 'inp,
+    {
+        Self::new_direct(
+            context,
+            crate::indents::IndentProcessor::new(context, input),
+        )
+    }
+
+    /// Construct a new parser directly from the given input stream, without
+    /// processing indentation.
+    fn new_direct<I: IntoIterator<Item = LocatedToken> + 'inp>(
         context: &'ctx Context,
         input: I,
     ) -> Self {

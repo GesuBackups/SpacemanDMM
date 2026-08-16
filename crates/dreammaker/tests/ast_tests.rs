@@ -12,8 +12,7 @@ fn with_code<F: FnOnce(Context, ObjectTree)>(code: &'static str, f: F) {
     let context = Context::default();
     let path = std::path::PathBuf::from(r"test.dm");
     let pp = Preprocessor::from_buffer(&context, path, code.trim());
-    let indents = IndentProcessor::new(&context, pp);
-    let mut parser = Parser::new(&context, indents);
+    let mut parser = Parser::new(&context, pp);
     parser.enable_procs();
     let _tree = parser.parse_object_tree();
 

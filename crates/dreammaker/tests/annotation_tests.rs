@@ -1,7 +1,7 @@
 extern crate dreammaker as dm;
 
 use dm::annotation::AnnotationTree;
-use dm::{FileId, IndentProcessor, Lexer, Location, Parser};
+use dm::{FileId, Lexer, Location, Parser};
 
 #[test]
 fn annotation_basic() {
@@ -21,9 +21,8 @@ fn annotation_basic() {
 
     let context = Default::default();
     let lexer = Lexer::new(&context, FileId::INVALID, code.as_bytes());
-    let indent = IndentProcessor::new(&context, lexer);
     let mut annotations = AnnotationTree::default();
-    Parser::new(&context, indent).parse_annotations_only(&mut annotations);
+    Parser::new(&context, lexer).parse_annotations_only(&mut annotations);
     context.assert_success();
     println!("len: {}", annotations.len());
     for each in annotations.get_location(Location {

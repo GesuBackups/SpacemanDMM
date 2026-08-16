@@ -78,8 +78,7 @@ impl Context {
                 std::process::exit(1);
             },
         };
-        let indents = dm::IndentProcessor::new(&self.dm_context, pp);
-        let parser = dm::Parser::new(&self.dm_context, indents);
+        let parser = dm::Parser::new(&self.dm_context, pp);
         self.objtree = parser.parse_object_tree();
     }
 }

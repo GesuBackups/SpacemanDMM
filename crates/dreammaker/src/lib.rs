@@ -14,12 +14,11 @@ extern crate toml;
 use std::borrow::Cow;
 use std::path::Path;
 
-mod error;
-use get_size::GetSize;
-
 use foldhash::fast::RandomState;
+use get_size::GetSize;
 use indexmap::IndexMap;
 
+mod error;
 #[macro_use]
 mod intern;
 pub mod annotation;
@@ -35,7 +34,6 @@ mod parser;
 pub mod preprocessor;
 
 pub use error::*;
-pub use indents::IndentProcessor;
 pub use lexer::Lexer;
 pub use parser::Parser;
 pub use preprocessor::Preprocessor;
@@ -48,8 +46,7 @@ impl Context {
     /// errors to standard error.
     pub fn parse_environment(&self, dme: &Path) -> Result<objtree::ObjectTree, DMError> {
         let pp = Preprocessor::new(self, dme.to_owned())?;
-        let ip = IndentProcessor::new(self, pp);
-        let p = Parser::new(self, ip);
+        let p = Parser::new(self, pp);
         Ok(p.parse_object_tree())
     }
 }
@@ -221,4 +218,12 @@ where
     total += u64::get_stack_size() * 4; // composition of RandomState
 
     total
+}
+
+#[doc(hidden)]
+pub fn _test_indent(
+    context: &Context,
+    input: impl IntoIterator<Item = lexer::LocatedToken>,
+) -> impl Iterator<Item = lexer::LocatedToken> {
+    indents::IndentProcessor::new(context, input)
 }
