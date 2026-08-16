@@ -1,11 +1,4 @@
-extern crate dreamchecker as dc;
-
-use dc::test_helpers::*;
-
-pub const CONST_EVAL_ERRORS: &[(u32, u16, &str)] = &[
-    (2, 7, "control flow condition is a static term"),
-    (2, 7, "if condition is always true"),
-];
+use dreamchecker::test_helpers::*;
 
 #[test]
 fn const_eval() {
@@ -16,10 +9,12 @@ fn const_eval() {
     return
 "##
     .trim();
-    check_errors_match(code, CONST_EVAL_ERRORS);
+    #[rustfmt::skip]
+    check_errors_match(code, &[
+        (2, 7, "control flow condition is a static term"),
+        (2, 7, "if condition is always true"),
+    ]);
 }
-
-pub const IF_ELSE_ERRORS: &[(u32, u16, &str)] = &[(6, 5, "possible unreachable code here")];
 
 #[test]
 fn if_else() {
@@ -32,24 +27,11 @@ fn if_else() {
     return
 "##
     .trim();
-    check_errors_match(code, IF_ELSE_ERRORS);
+    #[rustfmt::skip]
+    check_errors_match(code, &[
+        (6, 5, "possible unreachable code here"),
+    ]);
 }
-
-pub const IF_ARMS_ERRORS: &[(u32, u16, &str)] = &[
-    (2, 7, "control flow condition is a static term"),
-    (2, 7, "if condition is always true"),
-    (
-        4,
-        12,
-        "unreachable if block, preceeding if/elseif condition(s) are always true",
-    ),
-    // TODO: fix location reporting on this
-    (
-        7,
-        9,
-        "unreachable else block, preceeding if/elseif condition(s) are always true",
-    ),
-];
 
 #[test]
 fn if_arms() {
@@ -63,11 +45,15 @@ fn if_arms() {
         return
 "##
     .trim();
-    check_errors_match(code, IF_ARMS_ERRORS);
+    #[rustfmt::skip]
+    check_errors_match(code, &[
+        (2, 7, "control flow condition is a static term"),
+        (2, 7, "if condition is always true"),
+        (4, 12, "unreachable if block, preceeding if/elseif condition(s) are always true"),
+        // TODO: fix location reporting on this
+        (7, 9, "unreachable else block, preceeding if/elseif condition(s) are always true"),
+    ]);
 }
-
-pub const DO_WHILE_ERRORS: &[(u32, u16, &str)] =
-    &[(2, 5, "do while terminates without ever reaching condition")];
 
 #[test]
 fn do_while() {
@@ -78,14 +64,11 @@ fn do_while() {
     while(prob(50))
 "##
     .trim();
-    check_errors_match(code, DO_WHILE_ERRORS);
+    #[rustfmt::skip]
+    check_errors_match(code, &[
+        (2, 5, "do while terminates without ever reaching condition"),
+    ]);
 }
-
-pub const FOR_LOOP_CONDITION_ERRORS: &[(u32, u16, &str)] = &[
-    (4, 5, "loop condition is always true"),
-    (4, 5, "control flow condition is a static term"),
-    (6, 5, "control flow condition is a constant evalutation"),
-];
 
 #[test]
 fn for_loop_condition() {
@@ -102,7 +85,12 @@ fn for_loop_condition() {
     return
 "##
     .trim();
-    check_errors_match(code, FOR_LOOP_CONDITION_ERRORS);
+    #[rustfmt::skip]
+    check_errors_match(code, &[
+        (4, 5, "loop condition is always true"),
+        (4, 5, "control flow condition is a static term"),
+        (6, 5, "control flow condition is a constant evalutation"),
+    ]);
 }
 
 #[test]
@@ -116,14 +104,8 @@ fn for_kv_check() {
 
 "##
     .trim();
-    check_errors_match(code, NO_ERRORS);
+    check_errors_match(code, &[]);
 }
-
-pub const FOR_KV_VALUE_ERROR: &[(u32, u16, &str)] = &[(
-    3,
-    23,
-    "value must be a variable in a for (key, value) statement",
-)];
 
 #[test]
 fn for_kv_value_check() {
@@ -134,14 +116,11 @@ fn for_kv_value_check() {
         world.log << k
 "##
     .trim();
-    check_errors_match(code, FOR_KV_VALUE_ERROR);
+    #[rustfmt::skip]
+    check_errors_match(code, &[
+        (3, 23, "value must be a variable in a for (key, value) statement"),
+    ]);
 }
-
-pub const FOR_KV_KEY_ERROR: &[(u32, u16, &str)] = &[(
-    3,
-    27,
-    "cannot assign a value to key in a for(key, value) statement",
-)];
 
 #[test]
 fn for_kv_key_check() {
@@ -152,5 +131,8 @@ fn for_kv_key_check() {
         world.log << k
 "##
     .trim();
-    check_errors_match(code, FOR_KV_KEY_ERROR);
+    #[rustfmt::skip]
+    check_errors_match(code, &[
+        (3, 27, "cannot assign a value to key in a for(key, value) statement"),
+    ]);
 }
