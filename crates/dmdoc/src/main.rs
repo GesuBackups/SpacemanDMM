@@ -242,7 +242,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     ModuleItem::DocComment(DocComment {
                         kind: CommentKind::Block,
                         target: DocTarget::EnclosingItem,
-                        text: buf,
+                        text: buf.into(),
                     }),
                 ));
             }

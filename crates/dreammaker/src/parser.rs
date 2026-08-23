@@ -2610,8 +2610,8 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
             // term :: str_lit | num_lit
             Token::String(val) => Term::String(val),
             Token::Resource(val) => {
-                self.annotate_precise(start..start.add_columns(2 + val.len() as u16), || Annotation::Resource(val.as_str().into()));
-                Term::Resource(val)
+                self.annotate_precise(start..start.add_columns(2 + val.len() as u16), || Annotation::Resource((*val).into()));
+                Term::Resource(val.into())
             },
             Token::Int(val) => Term::Int(val),
             Token::Float(val) => Term::Float(val),

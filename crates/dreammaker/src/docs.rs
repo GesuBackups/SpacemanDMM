@@ -77,7 +77,7 @@ impl IntoIterator for DocCollection {
 pub struct DocComment {
     pub kind: CommentKind,
     pub target: DocTarget,
-    pub text: String,
+    pub text: Box<String>,
 }
 
 impl DocComment {
@@ -86,7 +86,7 @@ impl DocComment {
         DocComment {
             kind,
             target,
-            text: String::new(),
+            text: Default::default(),
         }
     }
 

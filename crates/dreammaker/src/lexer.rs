@@ -263,7 +263,7 @@ pub enum Token {
     /// The closing portion of an interpolated string. Preceded by an expression.
     InterpStringEnd(Ident),
     /// A resource literal, referring to a filename.
-    Resource(String),
+    Resource(Box<str>),
     /// An integer literal.
     Int(i32),
     /// A floating-point literal.
@@ -271,6 +271,8 @@ pub enum Token {
     /// A documentation comment.
     DocComment(DocComment),
 }
+
+const _: () = assert!(std::mem::size_of::<Token>() <= 24);
 
 impl Token {
     #[inline]
@@ -799,7 +801,7 @@ impl<'ctx> Lexer<'ctx> {
         }
 
         comment.filter(|_| !comment_text.is_empty()).map(|mut c| {
-            c.text = from_utf8_or_latin1(comment_text);
+            c.text = from_utf8_or_latin1(comment_text).into();
             Token::DocComment(c)
         })
     }
@@ -850,7 +852,7 @@ impl<'ctx> Lexer<'ctx> {
         }
 
         comment.map(|mut c| {
-            c.text = from_utf8_or_latin1(comment_text);
+            c.text = from_utf8_or_latin1(comment_text).into();
             Token::DocComment(c)
         })
     }
@@ -1258,7 +1260,7 @@ impl<'ctx> Iterator for Lexer<'ctx> {
                     }
                     continue;
                 },
-                Some(SingleQuote) => Some(locate(Resource(self.read_resource()))),
+                Some(SingleQuote) => Some(locate(Resource(self.read_resource().into()))),
                 Some(DoubleQuote) => Some(locate(self.read_string(b"\"", false))),
                 Some(BlockString) => Some(locate(self.read_string(b"\"}", false))),
                 Some(lbr @ LBracket | lbr @ SafeLBracket) => {

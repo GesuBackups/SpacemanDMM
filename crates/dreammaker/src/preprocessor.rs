@@ -1128,7 +1128,7 @@ impl<'ctx> Preprocessor<'ctx> {
                     doc_collection.push(DocComment {
                         kind: crate::docs::CommentKind::Line,
                         target: DocTarget::FollowingItem,
-                        text: dm_path,
+                        text: dm_path.into(),
                     });
                     self.annotate_macro(ident, Location::BUILTINS, Some(Rc::new(doc_collection)));
                     for include in self.include_stack.stack.iter().rev() {
@@ -1144,7 +1144,7 @@ impl<'ctx> Preprocessor<'ctx> {
                     doc_collection.push(DocComment {
                         kind: crate::docs::CommentKind::Line,
                         target: DocTarget::FollowingItem,
-                        text: self.last_input_loc.line.to_string(),
+                        text: self.last_input_loc.line.to_string().into(),
                     });
                     self.annotate_macro(ident, Location::BUILTINS, Some(Rc::new(doc_collection)));
                     self.push_output(Token::Int(self.last_input_loc.line as i32));
