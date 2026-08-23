@@ -2,6 +2,8 @@
 //! DreamMaker.
 #![allow(dead_code, unused_variables)]
 
+use bitflags::bitflags;
+
 extern crate dreammaker as dm;
 use dm::ast::*;
 use dm::constants::{ConstFn, Constant};
@@ -1299,91 +1301,117 @@ pub fn check_var_defs(objtree: &ObjectTree, context: &Context) {
 
 // ----------------------------------------------------------------------------
 // Procedure analyzer
+
+bitflags! {
+    #[derive(Clone, Copy, Debug)]
+    pub struct ControlFlags: u32 {
+        const RETURN = 1 << 0;
+        const CONTINUE = 1 << 1;
+        const BREAK = 1 << 2;
+    }
+}
+
 #[derive(Debug)]
 pub struct ControlFlow {
-    pub returns: bool,
-    pub continues: bool,
-    pub breaks: bool,
-    pub fuzzy: bool,
+    // Control operations that might or might not happen, depending on how things like for loops or if blocks run
+    // We shunt stuff from will_flags here once we become unsure on if it'll happen or not
+    pub might_flags: ControlFlags,
+    // Control operations that will happen, at least at this point in processing
+    pub will_flags: ControlFlags,
 }
 
 impl ControlFlow {
     pub fn alltrue() -> ControlFlow {
         ControlFlow {
-            returns: true,
-            continues: true,
-            breaks: true,
-            fuzzy: false,
+            might_flags: ControlFlags::empty(),
+            will_flags: ControlFlags::all(),
         }
     }
 
     pub fn allfalse() -> ControlFlow {
         ControlFlow {
-            returns: false,
-            continues: false,
-            breaks: false,
-            fuzzy: false,
+            might_flags: ControlFlags::empty(),
+            will_flags: ControlFlags::empty(),
+        }
+    }
+
+    pub fn returns() -> ControlFlow {
+        ControlFlow {
+            might_flags: ControlFlags::empty(),
+            will_flags: ControlFlags::RETURN,
+        }
+    }
+
+    pub fn continues() -> ControlFlow {
+        ControlFlow {
+            might_flags: ControlFlags::empty(),
+            will_flags: ControlFlags::CONTINUE,
+        }
+    }
+
+    pub fn breaks() -> ControlFlow {
+        ControlFlow {
+            might_flags: ControlFlags::empty(),
+            will_flags: ControlFlags::BREAK,
         }
     }
 
     pub fn terminates(&self) -> bool {
-        !self.fuzzy && (self.returns || self.continues || self.breaks)
+        self.will_flags
+            .intersects(ControlFlags::RETURN | ControlFlags::CONTINUE | ControlFlags::BREAK)
     }
 
     pub fn terminates_loop(&self) -> bool {
-        !self.fuzzy && (self.returns || self.breaks)
+        self.will_flags
+            .intersects(ControlFlags::RETURN | ControlFlags::BREAK)
     }
 
     pub fn no_else(&mut self) {
-        self.returns = false;
-        self.continues = false;
-        self.breaks = false;
+        self.might_flags |= self.will_flags;
+        self.will_flags = ControlFlags::empty();
     }
 
     pub fn merge(&mut self, other: ControlFlow) {
-        if !self.fuzzy && other.returns {
-            self.returns = true;
-        }
-        if other.fuzzy {
-            self.returns = false;
-        }
-        if other.continues {
-            self.continues = true;
-        }
-        if other.breaks {
-            self.breaks = true;
-        }
-        if other.fuzzy {
-            self.fuzzy = true;
-        }
+        self.might_flags |= other.might_flags;
+        self.will_flags |= other.will_flags;
     }
 
-    pub fn merge_false(&mut self, other: ControlFlow) {
-        if !other.returns {
-            self.returns = false;
-        }
-        if !other.continues {
-            self.continues = false;
-        }
-        if !other.breaks {
-            self.breaks = false;
-        }
-        if other.fuzzy {
-            self.fuzzy = true;
-        }
-    }
-
-    pub fn finalize(&mut self) {
-        if self.returns || self.breaks || self.continues {
-            self.fuzzy = false;
-        }
+    pub fn falsify_with(&mut self, other: ControlFlow) {
+        // Falsify anything the other guy cannot do
+        self.will_flags &= other.will_flags;
+        // Infect ourselves with what might happen
+        self.might_flags |= other.will_flags | other.might_flags;
     }
 
     pub fn end_loop(&mut self) {
-        self.returns = false;
-        self.continues = false;
-        self.breaks = false;
-        self.fuzzy = false;
+        // Kill all the control flow stuff that is confined to our loop
+        // We can't be sure that our loop will ever run, so we clear out EVERYTHING
+        self.might_flags |= self.will_flags;
+        self.will_flags = ControlFlags::empty();
+        // Might flags exsits so we can tell what might happen TO THE CURRENT SCOPE WE ARE IN
+        // So it's not helpful to hold onto stuff that isn't return
+        self.might_flags
+            .remove(ControlFlags::CONTINUE | ControlFlags::BREAK);
+    }
+
+    // For capping a loop we are sure will run
+    pub fn end_guaranteed_loop(&mut self) {
+        // This one's more complicated, if we will NEVER continue or break then we're allowed to pass returns up the chain as guaranteed.
+        // If we could ever, then we're not
+        if self
+            .might_flags
+            .intersects(ControlFlags::CONTINUE | ControlFlags::BREAK)
+        {
+            // Return might happen, but it is not guarenteed due to the other control flow
+            self.might_flags |= self.will_flags & ControlFlags::RETURN;
+            self.will_flags = ControlFlags::empty();
+        } else {
+            self.will_flags
+                .remove(ControlFlags::CONTINUE | ControlFlags::BREAK);
+        }
+        // Clear out the stuff we don't need anymore
+        self.might_flags
+            .remove(ControlFlags::CONTINUE | ControlFlags::BREAK);
     }
 }
 
@@ -1675,31 +1703,16 @@ impl<'o, 's> AnalyzeProc<'o, 's> {
                 }
                 let return_type = self.visit_expression(location, expr, None, local_vars);
                 local_vars.get_mut(".").unwrap().analysis = return_type;
-                return ControlFlow {
-                    returns: true,
-                    continues: false,
-                    breaks: false,
-                    fuzzy: false,
-                };
+                return ControlFlow::returns();
             },
             Statement::Return(None) => {
-                return ControlFlow {
-                    returns: true,
-                    continues: false,
-                    breaks: false,
-                    fuzzy: false,
-                };
+                return ControlFlow::returns();
             },
             Statement::Crash(expr) => {
                 if let Some(expr) = expr {
                     self.visit_expression(location, expr, None, local_vars);
                 }
-                return ControlFlow {
-                    returns: true,
-                    continues: false,
-                    breaks: false,
-                    fuzzy: false,
-                };
+                return ControlFlow::returns();
             },
             Statement::Throw(expr) => {
                 self.visit_expression(location, expr, None, local_vars);
@@ -1721,6 +1734,7 @@ impl<'o, 's> AnalyzeProc<'o, 's> {
                         "do while terminates without ever reaching condition",
                     )
                     .register(self.context);
+                    state.end_guaranteed_loop();
                     return state;
                 }
                 self.visit_expression(
@@ -1730,7 +1744,7 @@ impl<'o, 's> AnalyzeProc<'o, 's> {
                     &mut scoped_locals,
                 );
 
-                state.end_loop();
+                state.end_guaranteed_loop();
                 return state;
             },
             Statement::If { arms, else_arm } => {
@@ -1756,7 +1770,7 @@ impl<'o, 's> AnalyzeProc<'o, 's> {
                             error(condition.location, "if condition is always true")
                                 .with_errortype("if_condition_determinate")
                                 .register(self.context);
-                            allterm.merge_false(state);
+                            allterm.falsify_with(state);
                             alwaystrue = true;
                         },
                         Some(false) => {
@@ -1764,7 +1778,7 @@ impl<'o, 's> AnalyzeProc<'o, 's> {
                                 .with_errortype("if_condition_determinate")
                                 .register(self.context);
                         },
-                        None => allterm.merge_false(state),
+                        None => allterm.falsify_with(state),
                     };
                 }
                 if let Some(else_arm) = else_arm {
@@ -1774,12 +1788,11 @@ impl<'o, 's> AnalyzeProc<'o, 's> {
                             .register(self.context);
                     }
                     let state = self.visit_block(else_arm, &mut local_vars.clone(), false);
-                    allterm.merge_false(state);
+                    allterm.falsify_with(state);
                 } else {
                     allterm.no_else();
                     return allterm;
                 }
-                allterm.finalize();
                 return allterm;
             },
             Statement::ForInfinite { block } => {
@@ -1903,6 +1916,8 @@ impl<'o, 's> AnalyzeProc<'o, 's> {
                         )
                         .register(self.context);
                     } else {
+                        // the body is ALWAYS executed, so it's safe to pass up some control fields
+                        state.end_guaranteed_loop();
                         return state;
                     }
                 }
@@ -1984,16 +1999,15 @@ impl<'o, 's> AnalyzeProc<'o, 's> {
                         }
                     }
                     let state = self.visit_block(block, &mut scoped_locals, false);
-                    allterm.merge_false(state);
+                    allterm.falsify_with(state);
                 }
                 if let Some(default) = default {
                     let state = self.visit_block(default, &mut local_vars.clone(), false);
-                    allterm.merge_false(state);
+                    allterm.falsify_with(state);
                 } else {
                     allterm.no_else();
                     return allterm;
                 }
-                allterm.finalize();
                 return allterm;
             },
             Statement::TryCatch {
@@ -2029,20 +2043,10 @@ impl<'o, 's> AnalyzeProc<'o, 's> {
                 self.visit_block(catch_block, &mut catch_locals, false);
             },
             Statement::Continue(_) => {
-                return ControlFlow {
-                    returns: false,
-                    continues: true,
-                    breaks: false,
-                    fuzzy: true,
-                };
+                return ControlFlow::continues();
             },
             Statement::Break(_) => {
-                return ControlFlow {
-                    returns: false,
-                    continues: false,
-                    breaks: true,
-                    fuzzy: true,
-                };
+                return ControlFlow::breaks();
             },
             Statement::Goto(_) => {},
             Statement::Label { name: _, block } => {

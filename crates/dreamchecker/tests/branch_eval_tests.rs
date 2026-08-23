@@ -34,6 +34,154 @@ fn if_else() {
 }
 
 #[test]
+fn if_no_else() {
+    let code = r##"
+/proc/test()
+    if(prob(50))
+        return
+    return
+"##
+    .trim();
+    check_errors_match(code, &[]);
+}
+
+#[test]
+fn if_empty_else() {
+    let code = r##"
+/proc/test()
+    if(prob(50))
+        return
+    else
+        var/empty
+    return
+"##
+    .trim();
+    check_errors_match(code, &[]);
+}
+
+#[test]
+fn if_else_for() {
+    let code = r##"
+/proc/test()
+    for(var/i in list("a"))
+        if(prob(50))
+            return
+        else
+            return
+        return
+"##
+    .trim();
+    #[rustfmt::skip]
+    check_errors_match(code, &[
+        (7, 9, "possible unreachable code here"),
+    ]);
+}
+
+#[test]
+fn if_else_ambiguious_for() {
+    let code = r##"
+/proc/test()
+    for(var/i in list("a"))
+        if(prob(50))
+            return
+        else
+            return
+    return
+"##
+    .trim();
+    check_errors_match(code, &[]);
+}
+
+#[test]
+fn if_else_for_continue() {
+    let code = r##"
+/proc/test()
+    for(var/i in list("a"))
+        if(prob(50))
+            continue
+        else
+            continue
+        return
+"##
+    .trim();
+    #[rustfmt::skip]
+    check_errors_match(code, &[
+        (7, 9, "possible unreachable code here"),
+    ]);
+}
+
+#[test]
+fn if_else_for_continue_redundant() {
+    let code = r##"
+/proc/test()
+    for(var/i in list("a"))
+        if(prob(50))
+            continue
+        else
+            continue
+    return
+"##
+    .trim();
+    check_errors_match(code, &[]);
+}
+
+#[test]
+fn guaranteed_for_bleeding() {
+    let code = r##"
+/proc/test()
+    for(var/i in 1 to 2)
+        continue
+    return
+"##
+    .trim();
+    check_errors_match(code, &[]);
+}
+
+#[test]
+fn guaranteed_for_return() {
+    let code = r##"
+/proc/test()
+    for(var/i in 1 to 2)
+        return
+    return
+"##
+    .trim();
+    #[rustfmt::skip]
+    check_errors_match(code, &[
+        (4, 5, "possible unreachable code here"),
+    ]);
+}
+
+#[test]
+fn unclear_for_return() {
+    let code = r##"
+/proc/test()
+    for(var/i in 1 to 2)
+        if(prob(50))
+            continue
+        return
+    return
+"##
+    .trim();
+    check_errors_match(code, &[]);
+}
+
+#[test]
+fn nested_unclear_for_return() {
+    let code = r##"
+/proc/test()
+    for(var/i in 1 to 2)
+        if(prob(50))
+            if(prob(50))
+                continue
+        return
+    return
+"##
+    .trim();
+    check_errors_match(code, &[]);
+}
+
+#[test]
 fn if_arms() {
     let code = r##"
 /proc/test()
