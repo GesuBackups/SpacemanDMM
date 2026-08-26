@@ -5,22 +5,19 @@ use std::fmt;
 use std::mem::size_of;
 use std::ops::Range;
 
+use foldhash::fast::RandomState;
 use get_size::GetSize;
 use get_size_derive::GetSize;
-
-use foldhash::fast::RandomState;
 use indexmap::IndexMap;
 
-use crate::ast::AbsolutePath;
-use crate::heap_size_of_index_map;
-
-use super::ast::{
-    Block, Expression, Ident, Parameter, PathOp, ProcDeclBuilder, ProcDeclKind, ProcFlags,
-    ProcReturnType, VarSuffix, VarType, VarTypeBuilder,
+use crate::ast::{
+    AbsolutePath, Block, Expression, Ident, Parameter, PathOp, ProcDeclBuilder, ProcDeclKind,
+    ProcFlags, ProcReturnType, VarType, VarTypeFlags,
 };
-use super::constants::Constant;
-use super::docs::DocCollection;
-use super::{Context, DMError, Location, Severity};
+use crate::constants::Constant;
+use crate::docs::DocCollection;
+use crate::heap_size_of_index_map;
+use crate::{Context, DMError, Location, Severity};
 
 // ----------------------------------------------------------------------------
 // Symbol IDs
@@ -1145,77 +1142,6 @@ impl ObjectTreeBuilder {
         Ok((current, last))
     }
 
-    fn register_var<I>(
-        &mut self,
-        location: Location,
-        parent: NodeIndex,
-        mut prev: Ident,
-        mut rest: I,
-        comment: DocCollection,
-        suffix: VarSuffix,
-    ) -> Result<Option<&mut TypeVar>, DMError>
-    where
-        I: Iterator<Item = Ident>,
-    {
-        use super::ast::VarTypeFlags;
-        let mut is_declaration = false;
-        let mut flags = VarTypeFlags::default();
-
-        if is_var_decl(&prev) {
-            is_declaration = true;
-            prev = match rest.next() {
-                Some(name) => name,
-                None => return Ok(None), // var{} block, children will be real vars
-            };
-            while let Some(flag) = VarTypeFlags::from_name(&prev) {
-                if let Some(name) = rest.next() {
-                    flags |= flag;
-                    prev = name;
-                } else {
-                    return Ok(None); // var/const{} block, children will be real vars
-                }
-            }
-        } else if is_proc_decl(&prev) {
-            return Err(DMError::new(location, "proc looks like a var"));
-        }
-
-        let mut type_path = Vec::new();
-        for each in rest {
-            type_path.push(prev.clone());
-            prev = each;
-        }
-        let mut var_type = VarTypeBuilder {
-            flags,
-            type_path,
-            input_type: None,
-        };
-        var_type.suffix(&suffix);
-
-        let symbols = &mut self.symbols;
-        let node = &mut self.inner.graph[parent.index()];
-        // TODO: warn and merge docs for repeats
-        Ok(Some(node.vars.entry(prev.clone()).or_insert_with(|| {
-            TypeVar {
-                value: VarValue {
-                    location,
-                    expression: suffix.into_initializer(),
-                    constant: None,
-                    being_evaluated: false,
-                    docs: comment,
-                },
-                declaration: if is_declaration {
-                    Some(VarDeclaration {
-                        var_type: var_type.build(),
-                        location,
-                        id: symbols.allocate(),
-                    })
-                } else {
-                    None
-                },
-            }
-        })))
-    }
-
     // It's fine.
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn register_proc(
@@ -1296,28 +1222,14 @@ impl ObjectTreeBuilder {
     }
 
     pub(crate) fn add_builtin_type(&mut self, elems: &[&'static str]) -> &mut Type {
-        self.add_type(
-            Location::BUILTINS,
-            elems.iter().copied().map(Ident::from_static),
-            elems.len() + 1,
-            Default::default(),
-        )
-        .unwrap()
-    }
-
-    // an entry which may be anything depending on the path
-    fn add_type<I: Iterator<Item = Ident>>(
-        &mut self,
-        location: Location,
-        mut path: I,
-        len: usize,
-        comment: DocCollection,
-    ) -> Result<&mut Type, DMError> {
-        let (parent, child) = self.get_from_path(location, &mut path, len)?;
+        let location = Location::BUILTINS;
+        let len = elems.len() + 1;
+        let (parent, child) = self
+            .get_from_path(location, elems.iter().copied().map(Ident::from_static), len)
+            .unwrap();
         assert!(!is_var_decl(&child) && !is_proc_decl(&child));
         let idx = self.subtype_or_add(location, parent, &child, len);
-        self.inner[idx].docs.extend(comment);
-        Ok(&mut self.inner[idx])
+        &mut self.inner[idx]
     }
 
     pub(crate) fn add_builtin_var(
@@ -1329,24 +1241,59 @@ impl ObjectTreeBuilder {
         let mut path = elems.iter().copied().map(Ident::from_static);
         let len = elems.len() + 1;
 
-        let (parent, initial) = self.get_from_path(location, &mut path, len).unwrap();
-        if let Some(type_var) = self
-            .register_var(
-                location,
-                parent,
-                initial,
-                path,
-                Default::default(),
-                Default::default(),
-            )
-            .unwrap()
-        {
-            type_var.value.location = location;
-            type_var.value.constant = value;
-            &mut type_var.value
-        } else {
-            panic!("var must have a name")
+        let (ty, mut prev) = self.get_from_path(location, &mut path, len).unwrap();
+        let mut is_declaration = false;
+        let mut flags = VarTypeFlags::default();
+        if is_var_decl(&prev) {
+            is_declaration = true;
+            prev = match path.next() {
+                Some(name) => name,
+                None => panic!("var must have a name"),
+            };
+            while let Some(flag) = VarTypeFlags::from_name(&prev) {
+                if let Some(name) = path.next() {
+                    flags |= flag;
+                    prev = name;
+                } else {
+                    panic!("var must have a name");
+                }
+            }
+        } else if is_proc_decl(&prev) {
+            panic!("proc looks like a var");
         }
+        let mut type_path = Vec::with_capacity(path.len());
+        for each in path {
+            type_path.push(prev);
+            prev = each;
+        }
+        let type_var = self.inner.graph[ty.index()]
+            .vars
+            .entry(prev.clone())
+            .or_insert_with(|| TypeVar {
+                value: VarValue {
+                    location: location,
+                    expression: None,
+                    constant: None,
+                    being_evaluated: false,
+                    docs: Default::default(),
+                },
+                declaration: if is_declaration {
+                    Some(VarDeclaration {
+                        var_type: VarType {
+                            flags,
+                            type_path: AbsolutePath::from_iter(type_path),
+                            input_type: Default::default(),
+                        },
+                        location: location,
+                        id: self.symbols.allocate(),
+                    })
+                } else {
+                    None
+                },
+            });
+        type_var.value.location = location;
+        type_var.value.constant = value;
+        &mut type_var.value
     }
 
     pub(crate) fn add_builtin_proc(
@@ -1354,43 +1301,22 @@ impl ObjectTreeBuilder {
         elems: &[&'static str],
         params: &[&'static str],
     ) -> &mut ProcValue {
-        self.add_proc(
-            &Default::default(),
-            Location::BUILTINS,
-            elems.iter().copied().map(Ident::from_static),
-            elems.len() + 1,
-            params
-                .iter()
-                .copied()
-                .map(|param| Parameter {
-                    var_type: Default::default(),
-                    name: Ident::from_static(param),
-                    default: None,
-                    input_type: None,
-                    in_list: None,
-                    location: Location::BUILTINS,
-                })
-                .collect(),
-            None,
-            None,
-        )
-        .unwrap()
-        .1
-    }
-
-    // an entry which is definitely a proc because an argument list is specified
-    #[allow(clippy::too_many_arguments)]
-    fn add_proc<I: Iterator<Item = Ident>>(
-        &mut self,
-        context: &Context,
-        location: Location,
-        mut path: I,
-        len: usize,
-        parameters: Vec<Parameter>,
-        code: Option<Block>,
-        body_range: Option<Range<Location>>,
-    ) -> Result<(usize, &mut ProcValue), DMError> {
-        let (parent, mut proc_name) = self.get_from_path(location, &mut path, len)?;
+        let location = Location::BUILTINS;
+        let mut path = elems.iter().copied().map(Ident::from_static);
+        let len = elems.len() + 1;
+        let parameters = params
+            .iter()
+            .copied()
+            .map(|param| Parameter {
+                var_type: Default::default(),
+                name: Ident::from_static(param),
+                default: None,
+                input_type: None,
+                in_list: None,
+                location: Location::BUILTINS,
+            })
+            .collect();
+        let (parent, mut proc_name) = self.get_from_path(location, &mut path, len).unwrap();
         let mut declaration = None;
         if let Some(kind) = ProcDeclKind::from_name(&proc_name) {
             let mut next_entry = path.next();
@@ -1402,29 +1328,27 @@ impl ObjectTreeBuilder {
             declaration = Some(ProcDeclBuilder::new(kind, flags));
             proc_name = match next_entry {
                 Some(name) => name,
-                None => return Err(DMError::new(location, "proc must have a name")),
+                None => panic!("proc must have a name"),
             };
         } else if is_var_decl(&proc_name) {
-            return Err(DMError::new(location, "var looks like a proc"));
+            panic!("var looks like a proc");
         }
         if let Some(other) = path.next() {
-            return Err(DMError::new(
-                location,
-                format!("proc name must be a single identifier (spurious {other:?})"),
-            ));
+            panic!("proc name must be a single identifier (spurious {other:?})");
         }
-
         self.register_proc(
-            context,
+            &Default::default(),
             location,
             parent,
             &proc_name,
             declaration,
             parameters,
             ProcReturnType::default(),
-            code,
-            body_range,
+            None,
+            None,
         )
+        .unwrap()
+        .1
     }
 }
 
