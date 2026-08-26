@@ -1250,7 +1250,7 @@ impl ObjectTreeBuilder {
                 Some(name) => name,
                 None => panic!("var must have a name"),
             };
-            while let Some(flag) = VarTypeFlags::from_name(&prev) {
+            while let Some(flag) = VarTypeFlags::from_ident(&prev) {
                 if let Some(name) = path.next() {
                     flags |= flag;
                     prev = name;
@@ -1320,7 +1320,7 @@ impl ObjectTreeBuilder {
         let mut declaration = None;
         if let Some(kind) = ProcDeclKind::from_name(&proc_name) {
             let mut next_entry = path.next();
-            let flags = ProcFlags::from_name(next_entry.as_ref().map_or("", Ident::as_str));
+            let flags = ProcFlags::from_ident(next_entry.as_ref().map_or("", Ident::as_str));
             if flags.is_some() {
                 // did something? take another step
                 next_entry = path.next();

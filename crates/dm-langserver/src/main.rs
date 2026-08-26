@@ -2143,8 +2143,8 @@ impl Engine {
                         .rev()
                         .find(|x| {
                             dm::ast::ProcDeclKind::from_name(x).is_none()
-                                && dm::ast::ProcFlags::from_name(x).is_none()
-                                && dm::ast::VarTypeFlags::from_name(x).is_none()
+                                && dm::ast::ProcFlags::from_ident(x).is_none()
+                                && dm::ast::VarTypeFlags::from_ident(x).is_none()
                                 && *x != "var"
                         })
                         .map(|i| i.to_string())

@@ -845,7 +845,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
                 if each == "var" {
                     var_type = Some(VarTypeBuilder::default());
                 } else if let Some(var_type) = var_type.as_mut() {
-                    if let Some(flag) = VarTypeFlags::from_name(each) {
+                    if let Some(flag) = VarTypeFlags::from_ident(each) {
                         var_type.flags |= flag;
                     } else {
                         var_type.type_path.push(each.to_owned());
@@ -853,7 +853,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
                 } else if let Some(kind) = ProcDeclKind::from_name(each) {
                     proc_builder = Some(ProcDeclBuilder::new(kind, None));
                 } else if let Some(builder) = proc_builder.as_mut() {
-                    let flags = ProcFlags::from_name(each);
+                    let flags = ProcFlags::from_ident(each);
                     if let Some(found) = flags {
                         builder.flags |= found
                     } else {
@@ -1039,7 +1039,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
                         .with_severity(Severity::Warning)
                         .register(self.context);
                 } else if let Some(mut var_type) = var_type.take() {
-                    if VarTypeFlags::from_name(last_part).is_some() {
+                    if VarTypeFlags::from_ident(last_part).is_some() {
                         self.error(format!("`var/{last_part};` item has no effect"))
                             .with_severity(Severity::Warning)
                             .register(self.context);
@@ -2912,10 +2912,10 @@ fn reconstruct_path(
     }
     if let Some(deets) = proc_deets {
         result.push(deets.kind.into());
-        result.extend(deets.flags.iter().map(Ident::from_static));
+        result.extend(deets.flags.iter_idents().map(Ident::from_static));
     }
     if let Some(var) = var_type {
-        result.extend(var.flags.iter().map(Ident::from_static));
+        result.extend(var.flags.iter_idents().map(Ident::from_static));
         result.extend(var.type_path.iter().cloned());
     }
     if !last.is_empty() {

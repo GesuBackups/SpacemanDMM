@@ -301,7 +301,7 @@ pub enum ProcReturnType {
 
 impl ProcReturnType {
     pub fn is_empty(&self) -> bool {
-        matches!(self, ProcReturnType::InputType(InputType { bits: 0 }))
+        matches!(self, ProcReturnType::InputType(i) if i.is_empty())
     }
 }
 
@@ -386,15 +386,18 @@ impl fmt::Display for ProcDeclKind {
 }
 
 bitflags! {
-    #[derive(Default, GetSize)]
+    #[derive(Default, Debug, Clone, PartialEq, Eq, Copy, Hash)]
+    #[repr(transparent)]
     pub struct ProcFlags: u8 {
         // DM flags
         const FINAL = 1 << 0;
     }
 }
 
+impl GetSize for ProcFlags {}
+
 impl ProcFlags {
-    pub fn from_name(name: &str) -> Option<ProcFlags> {
+    pub fn from_ident(name: &str) -> Option<ProcFlags> {
         match name {
             // DM flags
             "final" => Some(ProcFlags::FINAL),
@@ -408,7 +411,7 @@ impl ProcFlags {
         self.contains(ProcFlags::FINAL)
     }
 
-    pub fn iter(mut self) -> impl Iterator<Item = &'static str> {
+    pub fn iter_idents(mut self) -> impl Iterator<Item = &'static str> {
         std::iter::from_fn(move || {
             if self.is_final() {
                 self &= !ProcFlags::FINAL;
@@ -505,7 +508,8 @@ macro_rules! type_table {
 
 type_table! {
     /// A type specifier for verb arguments and input() calls.
-    #[derive(GetSize)]
+    #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+    #[repr(transparent)]
     pub struct InputType;
 
     // These values can be known with an invocation such as:
@@ -527,8 +531,8 @@ type_table! {
     "command_text", COMMAND_TEXT, 1 << 16;
     "color",        COLOR,        1 << 17;
     // Non-primitive combinations that are still valid as(X) calls:
-    "movable",      MOVABLE,      Self::OBJ.bits | Self::MOB.bits;
-    "atom",         ATOM,         Self::AREA.bits | Self::TURF.bits | Self::OBJ.bits | Self::MOB.bits;
+    "movable",      MOVABLE,      Self::OBJ.bits() | Self::MOB.bits();
+    "atom",         ATOM,         Self::AREA.bits() | Self::TURF.bits() | Self::OBJ.bits() | Self::MOB.bits();
     // Placeholder value for `as list` that's technically only legal as a proc return type, but whatever.
     "list",         LIST,         1 << 31;
 }
@@ -538,6 +542,8 @@ impl Default for InputType {
         Self::empty()
     }
 }
+
+impl GetSize for InputType {}
 
 impl InputType {
     /// Get a typepath that approximates this input type, if possible.
@@ -567,7 +573,8 @@ impl InputType {
 }
 
 bitflags! {
-    #[derive(Default, GetSize)]
+    #[derive(Default, Debug, Copy, Clone, PartialEq, Eq, Hash)]
+    #[repr(transparent)]
     pub struct VarTypeFlags: u8 {
         // DM flags
         const STATIC = 1 << 0;
@@ -580,8 +587,10 @@ bitflags! {
     }
 }
 
+impl GetSize for VarTypeFlags {}
+
 impl VarTypeFlags {
-    pub fn from_name(name: &str) -> Option<VarTypeFlags> {
+    pub fn from_ident(name: &str) -> Option<VarTypeFlags> {
         match name {
             // DM flags
             "global" | "static" => Some(VarTypeFlags::STATIC),
@@ -638,7 +647,7 @@ impl VarTypeFlags {
         !self.intersects(VarTypeFlags::CONST | VarTypeFlags::STATIC | VarTypeFlags::PROTECTED)
     }
 
-    pub fn iter(mut self) -> impl Iterator<Item = &'static str> {
+    pub fn iter_idents(mut self) -> impl Iterator<Item = &'static str> {
         std::iter::from_fn(move || {
             if self.is_static() {
                 self &= !VarTypeFlags::STATIC;
@@ -1551,7 +1560,7 @@ impl FromIterator<Ident> for VarTypeBuilder {
         let type_path = iter
             .into_iter()
             .skip_while(|p| {
-                if let Some(flag) = VarTypeFlags::from_name(p) {
+                if let Some(flag) = VarTypeFlags::from_ident(p) {
                     flags |= flag;
                     true
                 } else {
