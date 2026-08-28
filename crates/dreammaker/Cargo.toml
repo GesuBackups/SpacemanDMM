@@ -7,7 +7,7 @@ rust-version.workspace = true
 
 [dependencies]
 interval-tree = { path = "../interval-tree" }
-builtins-proc-macro = { path = "../builtins-proc-macro" }
+dreammaker-macros = { path = "../dreammaker-macros" }
 bitflags = "2.13.1"
 termcolor = "1.4.1"
 ordered-float = "5.3.0"

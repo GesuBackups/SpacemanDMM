@@ -1,5 +1,5 @@
 [package]
-name = "builtins-proc-macro"
+name = "dreammaker-macros"
 version = "0.0.0"
 authors = ["Tad Hardesty <tad@platymuus.com>"]
 edition.workspace = true

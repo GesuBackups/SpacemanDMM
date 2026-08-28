@@ -1,7 +1,6 @@
 [workspace]
 resolver = "2"
 members = [
-    "crates/builtins-proc-macro",
     "crates/dap-types",
     "crates/dm-langserver",
     "crates/dmdoc",
@@ -10,6 +9,7 @@ members = [
     "crates/dmm-tools-cli",
     "crates/dreamchecker",
     "crates/dreammaker",
+    "crates/dreammaker-macros",
     "crates/interval-tree",
     #"crates/spaceman-dmm",
 ]

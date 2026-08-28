@@ -241,7 +241,6 @@ impl Parse for DocComment {
     }
 }
 
-#[proc_macro]
 pub fn builtins_table(input: TokenStream) -> TokenStream {
     let builtins = parse_macro_input!(input as BuiltinsTable).0;
 

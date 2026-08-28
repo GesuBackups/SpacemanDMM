@@ -1,7 +1,5 @@
 //! BYOND built-in types, procs, and vars.
 
-use builtins_proc_macro::builtins_table;
-
 use crate::ast::Ident;
 
 use super::Location;
@@ -253,7 +251,7 @@ pub fn register_builtins(tree: &mut ObjectTreeBuilder) {
         };
     }
 
-    builtins_table! {
+    dreammaker_macros::builtins_table! {
         #[dm_ref("/DM/vars")]
         var/const/vars;
 
