@@ -1,14 +1,8 @@
-use phf::{Set, phf_set};
-
 pub fn intern_static(str: &str) -> Option<&'static str> {
-    STATIC_IDENTS.get_key(str).copied()
+    STATIC_STRINGS.get_key(str).copied()
 }
 
-macro_rules! ident {
-    ($x:literal) => {{ $crate::ast::Ident::from_static($x) }};
-}
-
-static STATIC_IDENTS: Set<&'static str> = phf_set! {
+dreammaker_macros::static_strings! {
     "__FILE__",
     "__LINE__",
     "__PARSE_ERROR__",
@@ -1002,4 +996,4 @@ static STATIC_IDENTS: Set<&'static str> = phf_set! {
     "y1",
     "y2",
     "z",
-};
+}

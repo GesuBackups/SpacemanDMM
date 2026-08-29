@@ -246,7 +246,7 @@ pub fn register_builtins(tree: &mut ObjectTreeBuilder) {
         };
     }
     macro_rules! string {
-        ($e:expr) => {
+        ($e:tt) => {
             Constant::String(ident!($e))
         };
     }
