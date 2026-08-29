@@ -496,7 +496,7 @@ pub(crate) fn dm_type(ty: &Type) -> Markup {
                                 },
                                 Some(ProcReturnType::TypePath(p)) => {
                                     span class="as" { " as " }
-                                    (env.linkify_type_array(p))
+                                    (env.linkify_type_array(p.as_slice()))
                                 },
                                 _ => {},
                             }

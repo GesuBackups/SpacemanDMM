@@ -981,7 +981,8 @@ impl<'o> AnalyzeObjectTree<'o> {
                     }
                 },
                 ProcReturnType::TypePath(bits) => {
-                    if let Ok(ty) = crate::static_type(self.objtree, proc_location, bits) {
+                    if let Ok(ty) = crate::static_type(self.objtree, proc_location, bits.as_slice())
+                    {
                         self.return_type.insert(proc, TypeExpr::from(ty));
                     }
                 },

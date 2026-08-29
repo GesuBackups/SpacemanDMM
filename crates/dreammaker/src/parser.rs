@@ -1437,7 +1437,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
             path_vec.push(require!(self.ident()));
         }
 
-        success(ProcReturnType::TypePath(path_vec))
+        success(ProcReturnType::TypePath(path_vec.into_iter().collect()))
     }
 
     /// Parse a verb input type. Used by proc params and the input() form.

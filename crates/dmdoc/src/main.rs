@@ -8,7 +8,7 @@ extern crate walkdir;
 mod markdown;
 mod template;
 
-use dm::ast::{Ident, InputType, ProcReturnType};
+use dm::ast::{AbsolutePath, Ident, InputType, ProcReturnType};
 use dm::objtree::ObjectTree;
 use foldhash::HashSet;
 use maud::{Markup, PreEscaped};
@@ -807,7 +807,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn find_return_type(code: &dm::ast::Block) -> Option<Vec<Ident>> {
+fn find_return_type(code: &dm::ast::Block) -> Option<AbsolutePath> {
     for stmt in code.iter() {
         if let dm::ast::Statement::Setting {
             name,
@@ -818,8 +818,7 @@ fn find_return_type(code: &dm::ast::Block) -> Option<Vec<Ident>> {
             if name.as_str() == "SpacemanDMM_return_type"
                 && let Some(dm::ast::Term::Prefab(fab)) = value.as_term()
             {
-                let bits: Vec<_> = fab.path.iter().map(|(_, name)| name.to_owned()).collect();
-                return Some(bits);
+                return Some(fab.path.iter().map(|(_, name)| name.to_owned()).collect());
             }
         } else {
             break;

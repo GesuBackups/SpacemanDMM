@@ -296,7 +296,7 @@ impl fmt::Display for PropertyAccessKind {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, GetSize)]
 pub enum ProcReturnType {
     InputType(InputType),
-    TypePath(Vec<Ident>),
+    TypePath(AbsolutePath),
 }
 
 impl ProcReturnType {
