@@ -35,8 +35,8 @@ macro_rules! table {
             pub fn single_quoted(self) -> &'static str {
                 match self {
                     $(
-                        $enum_::$name => concat!("'", $literal, "'"),
-                        $($enum_::$close => concat!("'", $literal, "'"),)*
+                        $enum_::$name => concat!("`", $literal, "`"),
+                        $($enum_::$close => concat!("`", $literal, "`"),)*
                     )*
                 }
             }
@@ -337,7 +337,7 @@ impl Token {
         match self {
             Token::Eof => Cow::Borrowed("EOF"),
             Token::Punct(p) => Cow::Borrowed(p.single_quoted()),
-            _ => Cow::Owned(format!("'{self}'")),
+            _ => Cow::Owned(format!("`{self}`")),
         }
     }
 }

@@ -290,9 +290,9 @@ impl TTKind {
 
     fn end(self) -> &'static str {
         match self {
-            TTKind::Paren => "')'",
-            TTKind::Brace => "'}'",
-            TTKind::Bracket => "']'",
+            TTKind::Paren => "`)`",
+            TTKind::Brace => "`}`",
+            TTKind::Bracket => "`]`",
         }
     }
 
@@ -479,7 +479,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
             error
         } else {
             let got = self.peek();
-            let message = format!("got '{got:#}', expected one of: {expected}");
+            let message = format!("got `{got:#}`, expected one of: {expected}");
             let mut error = self.error(message);
             if self.possible_indentation_error {
                 let mut loc = error.location();
@@ -632,7 +632,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
     }
 
     fn exact_ident(&mut self, ident: &'static str) -> Status<()> {
-        self.expected(format!("'{ident}'"));
+        self.expected(format!("`{ident}`"));
         take_match!(self {
             Token::Ident(i, _) if i == ident => SUCCESS,
         } else try_another())
@@ -642,14 +642,14 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
     // Doc comment tracking
 
     fn following_doc_comment(&mut self) -> Status<DocComment> {
-        //self.expected("'///'");
-        //self.expected("'/**'");
+        //self.expected("`///`");
+        //self.expected("`/**`");
         self.next_comment_of_target(DocTarget::FollowingItem)
     }
 
     fn enclosing_doc_comment(&mut self) -> Status<DocComment> {
-        //self.expected("'//!'");
-        //self.expected("'/*!'");
+        //self.expected("`//!`");
+        //self.expected("`/*!`");
         self.next_comment_of_target(DocTarget::EnclosingItem)
     }
 
@@ -668,14 +668,14 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
         terminator: Token,
     ) -> Status<()> {
         loop {
-            self.expected("';'");
+            self.expected("`;`");
             if terminator != Token::Eof {
                 self.expected(terminator.single_quoted());
             }
 
             if current == self.tree.root_index() {
-                self.expected("'//!'");
-                self.expected("'/*!'");
+                self.expected("`//!`");
+                self.expected("`/*!`");
                 if let Some(module_comment) = self.enclosing_doc_comment()? {
                     // If we're not inside a type, this is where module `//!` comments appear.
                     self.module_docs
@@ -756,13 +756,13 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
     ///
     /// Return: `(absolute, spurious_lead)`
     fn possible_leading_slash(&mut self) -> Result<(bool, bool), DMError> {
-        self.expected("'/'");
+        self.expected("`/`");
         take_match!(self {
             Token::Punct(Punctuation::Slash) => Ok((true, false)),
             Token::Punct(p @ Punctuation::Dot) |
             Token::Punct(p @ Punctuation::CloseColon) |
             Token::Punct(p @ Punctuation::Colon) => {
-                self.error(format!("path started by '{p}', should be unprefixed"))
+                self.error(format!("path started by `{p}`, should be unprefixed"))
                     .with_severity(Severity::Warning)
                     .register(self.context);
                 Ok((false, true))
@@ -772,13 +772,13 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
 
     /// Look for a `/`, and complain but continue if we see a `.` or `:`.
     fn slash(&mut self) -> Status<()> {
-        self.expected("'/'");
+        self.expected("`/`");
         take_match!(self {
             Token::Punct(Punctuation::Slash) => SUCCESS,
             Token::Punct(p @ Punctuation::Dot) |
             Token::Punct(p @ Punctuation::CloseColon) |
             Token::Punct(p @ Punctuation::Colon) => {
-                self.error(format!("path separated by '{p}', should be '/'"))
+                self.error(format!("path separated by `{p}`, should be `/`"))
                     .with_severity(Severity::Warning)
                     .register(self.context);
                 SUCCESS
@@ -916,9 +916,9 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
         }
 
         // read the contents for real
-        self.expected("'='");
-        self.expected("'('");
-        self.expected("'{'");
+        self.expected("`=`");
+        self.expected("`(`");
+        self.expected("`{`");
         match self.peek() {
             Punct(LBrace) => {
                 self.take();
@@ -1331,14 +1331,14 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
         };
         if path.first().is_some_and(|i| i == "var") {
             path.remove(0);
-            DMError::new(leading_loc, "'var/' is unnecessary here")
+            DMError::new(leading_loc, "`var/` is unnecessary here")
                 .with_severity(Severity::Hint)
                 .with_errortype("var_in_proc_parameter")
                 .register(self.context);
         }
         let mut var_type: VarTypeBuilder = path.into_iter().collect();
         if var_type.flags.is_static() {
-            DMError::new(leading_loc, "'static/' has no effect here")
+            DMError::new(leading_loc, "`static/` has no effect here")
                 .with_severity(Severity::Warning)
                 .with_errortype("static_in_proc_parameter")
                 .register(self.context);
@@ -1356,7 +1356,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
 
         // Allow a trailing `;` since BYOND accepts it, but this is dumb
         if let Some(()) = self.exact(Punct(Semicolon))? {
-            DMError::new(self.updated_location(), "Extraneous ';' in proc parameter")
+            DMError::new(self.updated_location(), "extraneous `;` in proc parameter")
                 .with_severity(Severity::Warning)
                 .with_errortype("semicolon_in_proc_parameter")
                 .register(self.context);
@@ -1402,7 +1402,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
             in_list = Some(require!(self.expression()));
             // in case it is out of order
             if let Some(()) = self.exact_ident("as")? {
-                self.error("'as' clause should precede 'in' clause, and is being ignored")
+                self.error("`as` clause should precede `in` clause, and is being ignored")
                     .with_errortype("in_precedes_as")
                     .with_severity(Severity::Warning)
                     .register(self.context);
@@ -1453,7 +1453,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
             Ok(what) => what,
             Err(()) => {
                 self.context
-                    .register_error(self.error(format!("bad input type: '{ident}'")));
+                    .register_error(self.error(format!("bad input type: `{ident}`")));
                 InputType::empty()
             },
         };
@@ -1463,7 +1463,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
                 Ok(what) => as_what |= what,
                 Err(()) => {
                     self.context
-                        .register_error(self.error(format!("bad input type: '{ident}'")));
+                        .register_error(self.error(format!("bad input type: `{ident}`")));
                 },
             }
         }
@@ -1877,7 +1877,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
     }
 
     fn statement_terminator(&mut self) -> Status<()> {
-        self.expected("';'");
+        self.expected("`;`");
         match self.peek() {
             Token::Punct(Punctuation::Semicolon) => {
                 self.take();
@@ -1920,7 +1920,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
                 let (_, mut tree_path) = require!(self.tree_path(true));
                 let name = match tree_path.pop() {
                     Some(name) => name,
-                    None => return Err(self.error("'var' must be followed by a name")),
+                    None => return Err(self.error("`var` must be followed by a name")),
                 };
 
                 let mut var_type = tree_path.into_iter().collect::<VarTypeBuilder>();
@@ -1972,7 +1972,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
                     (None, None)
                 };
                 if input_types.is_some() || in_list.is_some() {
-                    self.error("'as' clause has no effect on local variables")
+                    self.error("`as` clause has no effect on local variables")
                         .with_severity(Severity::Warning)
                         .with_errortype("as_local_var")
                         .register(self.context);
@@ -2257,7 +2257,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
             let mut result = rhs;
             while let Some(lhs) = bits.pop() {
                 // Ensure that the next thing we see is a ':' by now.
-                self.expected("':'");
+                self.expected("`:`");
                 take_match!(self {
                     Token::Punct(Punctuation::Colon) |
                     Token::Punct(Punctuation::CloseColon) => {},
@@ -2266,7 +2266,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
                 let else_ = match self.expression_ex(Some(Strength::Conditional), true)? {
                     Some(else_) => else_,
                     None => {
-                        self.error("missing else arm of conditional operator should be replaced with 'null'")
+                        self.error("missing else arm of conditional operator should be replaced with `null`")
                             .with_severity(Severity::Warning)
                             .register(self.context);
                         Expression::from(Term::Null)
@@ -2506,7 +2506,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
                     // read "in" clause
                     let in_list = if let Some(()) = self.exact(Token::Punct(Punctuation::In))? {
                         if args.len() > 1 {
-                            DMError::new(start, "bad 'locate(x, y, z) in'")
+                            DMError::new(start, "bad `locate(x, y, z) in`")
                                 .with_severity(Severity::Warning)
                                 .register(self.context);
                         }
@@ -2619,7 +2619,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
             // term :: '(' expression ')'
             Token::Punct(LParen) => {
                 if let Some(()) = self.exact(Token::Punct(Punctuation::RParen))? {
-                    self.error("'()' should be replaced with 'null'")
+                    self.error("`()` should be replaced with `null`")
                         .with_severity(Severity::Warning)
                         .register(self.context);
                     Term::Null
@@ -2634,7 +2634,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
                 let mut parts = Vec::new();
                 loop {
                     let expr = self.expression()?;
-                    self.expected("']'");
+                    self.expected("`]`");
                     take_match!(self {
                         Token::InterpStringPart(part) => {
                             parts.push((expr, part));

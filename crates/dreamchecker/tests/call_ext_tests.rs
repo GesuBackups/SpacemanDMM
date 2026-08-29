@@ -9,6 +9,6 @@ fn call_ext_missing_call() {
     .trim();
     #[rustfmt::skip]
     check_errors_match(code, &[
-        (2, 19, "got ';', expected one of: '('"),
+        (2, 19, "got `;`, expected one of: `(`"),
     ]);
 }

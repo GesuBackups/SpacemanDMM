@@ -21,7 +21,7 @@ fn new_dot() {
     .trim();
     #[rustfmt::skip]
     check_errors_match(code, &[
-        (12, 14, "got '(', expected one of: operator, field access, ';'"),
+        (12, 14, "got `(`, expected one of: operator, field access, `;`"),
     ]);
 }
 
@@ -36,6 +36,6 @@ fn new_precedence() {
     .trim();
     #[rustfmt::skip]
     check_errors_match(code, &[
-        (4, 13, "got '(', expected one of: operator, field access, ';'"),
+        (4, 13, "got `(`, expected one of: operator, field access, `;`"),
     ]);
 }

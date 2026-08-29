@@ -42,7 +42,7 @@ fn ambig_in_ternary_cond() {
     .trim();
     #[rustfmt::skip]
     check_errors_match(code, &[
-        (2, 14, "got 'in', expected one of: operator, field access, ':'"),
+        (2, 14, "got `in`, expected one of: operator, field access, `:`"),
     ]);
 }
 

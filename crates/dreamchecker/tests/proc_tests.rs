@@ -43,7 +43,7 @@ fn return_type_failure() {
     #[rustfmt::skip]
     check_errors_match(code, &[
         (4, 13, "cannot specify a return type for a proc override"),
-        (7, 22, "bad input type: 'incorrect'"),
+        (7, 22, "bad input type: `incorrect`"),
     ]);
 }
 
