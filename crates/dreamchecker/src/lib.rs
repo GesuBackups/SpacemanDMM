@@ -1215,7 +1215,7 @@ fn static_type<'o>(
     } else {
         Err(error(
             location,
-            format!("undefined type: {}", DisplayAbsolutePath(of)),
+            format!("undefined type: {}", AbsolutePath::display(of)),
         ))
     }
 }

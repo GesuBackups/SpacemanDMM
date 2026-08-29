@@ -938,21 +938,19 @@ impl AbsolutePath {
     pub fn iter(&self) -> impl Iterator<Item = &Ident> {
         self.0.iter()
     }
+
+    pub fn display<T: fmt::Display>(bits: &[T]) -> impl fmt::Display + '_ {
+        fmt::from_fn(move |f| {
+            for each in bits.iter() {
+                write!(f, "/{each}")?;
+            }
+            Ok(())
+        })
+    }
 }
 
 impl fmt::Display for AbsolutePath {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        for each in self.0.iter() {
-            write!(f, "/{each}")?;
-        }
-        Ok(())
-    }
-}
-
-pub struct DisplayAbsolutePath<'a, T>(pub &'a [T]);
-
-impl<'a, T: fmt::Display> fmt::Display for DisplayAbsolutePath<'a, T> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         for each in self.0.iter() {
             write!(f, "/{each}")?;
         }
@@ -992,20 +990,18 @@ impl RelativePath {
     pub fn push(&mut self, value: (PathOp, Ident)) {
         self.0.push(value);
     }
-}
 
-impl fmt::Display for RelativePath {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        for each in self.0.iter() {
-            write!(f, "{}{}", each.0, each.1)?;
-        }
-        Ok(())
+    pub fn display(bits: &[(PathOp, Ident)]) -> impl fmt::Display + '_ {
+        fmt::from_fn(move |f| {
+            for each in bits.iter() {
+                write!(f, "{}{}", each.0, each.1)?;
+            }
+            Ok(())
+        })
     }
 }
 
-pub struct DisplayRelativePath<'a>(pub &'a [(PathOp, Ident)]);
-
-impl<'a> fmt::Display for DisplayRelativePath<'a> {
+impl fmt::Display for RelativePath {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         for each in self.0.iter() {
             write!(f, "{}{}", each.0, each.1)?;
