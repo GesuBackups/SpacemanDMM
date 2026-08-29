@@ -3470,7 +3470,7 @@ impl<'o, 's> AnalyzeProc<'o, 's> {
 
     fn global_builtin_returntype(&mut self, proc: ProcRef) -> StaticType<'o> {
         match proc.name() {
-            "argslist" => StaticType::plain_list(self.objtree),
+            "arglist" => StaticType::plain_list(self.objtree),
             "block" => StaticType::list_of_type(self.objtree, "/turf"),
             "bounds" => StaticType::list_of_type(self.objtree, "/atom"),
             "flist" => StaticType::plain_list(self.objtree),

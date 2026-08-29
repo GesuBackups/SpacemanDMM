@@ -1761,6 +1761,23 @@ pub static VALID_FILTER_FLAGS: phf::Map<&'static str, (&str, bool, bool, &[&str]
     "wave" => ("flags", false, true, &[ "WAVE_SIDEWAYS", "WAVE_BOUNDED" ]),
 };
 
+#[test]
+fn types_and_flags_interned() {
+    for (&k, &list) in VALID_FILTER_TYPES.entries() {
+        assert!(intern_static(k).is_some(), "static strings missing {k:?}");
+        for &v in list {
+            assert!(intern_static(v).is_some(), "static strings missing {v:?}");
+        }
+    }
+    for (&k, &(f, _, _, list)) in VALID_FILTER_FLAGS.entries() {
+        assert!(intern_static(k).is_some(), "static strings missing {k:?}");
+        assert!(intern_static(f).is_some(), "static strings missing {f:?}");
+        for v in list {
+            assert!(intern_static(v).is_some(), "static strings missing {v:?}");
+        }
+    }
+}
+
 // ----------------------------------------------------------------------------
 // Guard against sizeof regression.
 const _: () = assert!(std::mem::size_of::<Ident>() <= 16);
