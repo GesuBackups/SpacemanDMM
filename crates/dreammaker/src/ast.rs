@@ -1474,7 +1474,6 @@ pub struct Parameter {
     pub var_type: VarType,
     pub name: Ident,
     pub default: Option<Expression>,
-    pub input_type: Option<InputType>,
     pub in_list: Option<Expression>,
     pub location: Location,
 }
@@ -1482,8 +1481,8 @@ pub struct Parameter {
 impl fmt::Display for Parameter {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         write!(fmt, "{}{}", self.var_type, self.name)?;
-        if let Some(input_type) = self.input_type {
-            write!(fmt, " as {input_type}")?;
+        if !self.var_type.input_type.is_empty() {
+            write!(fmt, " as {}", self.var_type.input_type)?;
         }
         Ok(())
     }

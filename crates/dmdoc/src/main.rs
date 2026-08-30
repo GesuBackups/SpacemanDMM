@@ -466,7 +466,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                             .map(|p| Param {
                                 name: p.name.clone(),
                                 type_path: p.var_type.type_path.to_string(),
-                                input_type: p.input_type,
+                                input_type: p.var_type.input_type,
                             })
                             .collect(),
                         decl: match proc.declaration {
@@ -1467,7 +1467,7 @@ struct Proc {
 struct Param {
     name: Ident,
     type_path: String,
-    input_type: Option<InputType>,
+    input_type: InputType,
 }
 
 /// Module struct exposed to templates.

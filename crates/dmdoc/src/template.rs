@@ -481,11 +481,9 @@ pub(crate) fn dm_type(ty: &Type) -> Markup {
                                     "/"
                                 }
                                 (param.name)
-                                @if let Some(input_type) = param.input_type {
-                                    @if !input_type.is_empty() {
-                                        span class="as" { " as " }
-                                        (render_input_type(env, input_type))
-                                    }
+                                @if !param.input_type.is_empty() {
+                                    span class="as" { " as " }
+                                    (render_input_type(env, param.input_type))
                                 }
                             }
                             ") "

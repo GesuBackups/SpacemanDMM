@@ -1311,7 +1311,6 @@ impl ObjectTreeBuilder {
                 var_type: Default::default(),
                 name: Ident::from_static(param),
                 default: None,
-                input_type: None,
                 in_list: None,
                 location: Location::BUILTINS,
             })

@@ -1311,7 +1311,6 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
                 var_type: Default::default(),
                 name: ident!("..."),
                 default: None,
-                input_type: None,
                 in_list: None,
                 location: self.location,
             });
@@ -1351,6 +1350,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
             None
         };
         let (input_type, in_list) = require!(self.input_specifier());
+        var_type.input_type = input_type;
 
         // Allow a trailing `;` since BYOND accepts it, but this is dumb
         if let Some(()) = self.exact(Punct(Semicolon))? {
@@ -1364,7 +1364,6 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
             var_type: var_type.build(),
             name,
             default,
-            input_type,
             in_list,
             location,
         })
