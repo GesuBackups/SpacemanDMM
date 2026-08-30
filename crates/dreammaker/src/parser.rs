@@ -773,6 +773,56 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
         } else try_another())
     }
 
+    fn traverse_tree(
+        &mut self,
+        current: &mut NodeIndex,
+        proc_builder: &mut Option<ProcDeclBuilder>,
+        var_type: &mut Option<VarTypeBuilder>,
+        path_len: usize,
+        absolute: bool,
+        relative_type_location: &mut Option<Location>,
+        each: &Ident,
+    ) {
+        if each == "var" {
+            *var_type = Some(VarTypeBuilder::default());
+        } else if let Some(var_type) = var_type.as_mut() {
+            if let Some(flag) = VarTypeFlags::from_ident(each) {
+                var_type.flags |= flag;
+            } else {
+                var_type.type_path.push(each.to_owned());
+            }
+        } else if let Some(kind) = ProcDeclKind::from_name(each) {
+            *proc_builder = Some(ProcDeclBuilder::new(kind, None));
+        } else if let Some(builder) = proc_builder.as_mut() {
+            let flags = ProcFlags::from_ident(each);
+            if let Some(found) = flags {
+                builder.flags |= found
+            } else {
+                self.error("cannot have sub-blocks of `proc/` block")
+                    .register(self.context);
+            }
+        } else {
+            let len = self
+                .tree
+                .get_path(*current)
+                .chars()
+                .filter(|&c| c == '/')
+                .count()
+                + path_len;
+            *current = self.tree.subtype_or_add(self.location, *current, each, len);
+
+            if !absolute
+                && self
+                    .context
+                    .config()
+                    .code_standards
+                    .disallow_relative_type_definitions
+            {
+                *relative_type_location = Some(self.location);
+            }
+        }
+    }
+
     fn tree_entry(
         &mut self,
         mut current: NodeIndex,
@@ -826,49 +876,6 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
         };
 
         let mut relative_type_location = None;
-        macro_rules! traverse_tree {
-            ($what:expr) => {
-                let each = $what;
-                if each == "var" {
-                    var_type = Some(VarTypeBuilder::default());
-                } else if let Some(var_type) = var_type.as_mut() {
-                    if let Some(flag) = VarTypeFlags::from_ident(each) {
-                        var_type.flags |= flag;
-                    } else {
-                        var_type.type_path.push(each.to_owned());
-                    }
-                } else if let Some(kind) = ProcDeclKind::from_name(each) {
-                    proc_builder = Some(ProcDeclBuilder::new(kind, None));
-                } else if let Some(builder) = proc_builder.as_mut() {
-                    let flags = ProcFlags::from_ident(each);
-                    if let Some(found) = flags {
-                        builder.flags |= found
-                    } else {
-                        self.error("cannot have sub-blocks of `proc/` block")
-                            .register(self.context);
-                    }
-                } else {
-                    let len = self
-                        .tree
-                        .get_path(current)
-                        .chars()
-                        .filter(|&c| c == '/')
-                        .count()
-                        + path_len;
-                    current = self.tree.subtype_or_add(self.location, current, each, len);
-
-                    if !absolute
-                        && self
-                            .context
-                            .config()
-                            .code_standards
-                            .disallow_relative_type_definitions
-                    {
-                        relative_type_location = Some(self.location);
-                    }
-                }
-            };
-        }
         macro_rules! handle_relative_type_error {
             () => {
                 if let Some(loc) = relative_type_location {
@@ -880,7 +887,15 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
         }
 
         for each in traverse {
-            traverse_tree!(each);
+            self.traverse_tree(
+                &mut current,
+                &mut proc_builder,
+                &mut var_type,
+                path_len,
+                absolute,
+                &mut relative_type_location,
+                each,
+            );
         }
 
         // parse operator overloading definitions
@@ -910,7 +925,15 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
             Punct(LBrace) => {
                 self.take();
                 // `thing{` - block
-                traverse_tree!(last_part);
+                self.traverse_tree(
+                    &mut current,
+                    &mut proc_builder,
+                    &mut var_type,
+                    path_len,
+                    absolute,
+                    &mut relative_type_location,
+                    last_part,
+                );
                 handle_relative_type_error!();
                 let start = self.updated_location();
 
