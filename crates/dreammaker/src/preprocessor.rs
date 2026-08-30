@@ -1007,8 +1007,8 @@ impl<'ctx> Preprocessor<'ctx> {
                             subst,
                         };
                         // DEBUG can only be defined in the root .dme file
-                        if (define_name != "DEBUG" || self.in_environment())
-                            && define_name != "FILE_DIR"
+                        if (define_name != ident!("DEBUG") || self.in_environment())
+                            && define_name != ident!("FILE_DIR")
                             && let Some(previous_loc) = self
                                 .defines
                                 .insert(define_name.clone(), (define_name_loc, define))
@@ -1110,7 +1110,7 @@ impl<'ctx> Preprocessor<'ctx> {
                 }
 
                 // substitute special macros
-                if ident == "__FILE__" {
+                if *ident == ident!("__FILE__") {
                     let path = self.include_stack.top_file_path().to_str().unwrap();
                     let dm_path;
 
@@ -1139,7 +1139,7 @@ impl<'ctx> Preprocessor<'ctx> {
                     }
                     self.push_output(Token::empty_string());
                     return Ok(());
-                } else if ident == "__LINE__" {
+                } else if *ident == ident!("__LINE__") {
                     let mut doc_collection = DocCollection::default();
                     doc_collection.push(DocComment {
                         kind: crate::docs::CommentKind::Line,

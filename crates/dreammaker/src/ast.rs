@@ -744,7 +744,8 @@ impl Ident {
     }
 
     #[inline]
-    pub(crate) fn from_static(str: &'static str) -> Self {
+    #[doc(hidden)]
+    pub fn from_static(str: &'static str) -> Self {
         debug_assert!(
             intern_static(str).is_some(),
             "Missing from STATIC_IDENTS: {:?}",
@@ -778,30 +779,6 @@ impl AsRef<str> for Ident {
 impl Borrow<str> for Ident {
     fn borrow(&self) -> &str {
         self.inner.borrow()
-    }
-}
-
-impl PartialEq<str> for Ident {
-    fn eq(&self, other: &str) -> bool {
-        &*self.inner == other
-    }
-}
-
-impl<'a> PartialEq<&'a str> for Ident {
-    fn eq(&self, other: &&'a str) -> bool {
-        &*self.inner == *other
-    }
-}
-
-impl PartialEq<Ident> for str {
-    fn eq(&self, other: &Ident) -> bool {
-        &*other.inner == self
-    }
-}
-
-impl PartialEq<Ident> for &str {
-    fn eq(&self, other: &Ident) -> bool {
-        &*other.inner == *self
     }
 }
 
@@ -1388,10 +1365,10 @@ impl Term {
         }
     }
 
-    pub fn as_kwarg_key(&self) -> Option<&str> {
+    pub fn as_kwarg_key(&self) -> Option<&Ident> {
         match self {
-            Term::Ident(i) => Some(i.as_str()),
-            Term::String(s) => Some(s.as_str()),
+            Term::Ident(i) => Some(i),
+            Term::String(s) => Some(s),
             _ => None,
         }
     }

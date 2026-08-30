@@ -620,10 +620,10 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
         } else try_another())
     }
 
-    fn exact_ident(&mut self, ident: &'static str) -> Status<()> {
+    fn exact_ident(&mut self, ident: Ident) -> Status<()> {
         self.expected(format!("`{ident}`"));
         take_match!(self {
-            Token::Ident(i, _) if i == ident => SUCCESS,
+            Token::Ident(i, _) if *i == ident => SUCCESS,
         } else try_another())
     }
 
@@ -722,7 +722,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
                 // .../operator/<non-ident> = ... / "operator/"
                 // but .../operator/ident = ... / "operator" / "ident"
                 let last: &mut Ident = parts.last_mut().unwrap();
-                if *last == "operator" {
+                if *last == ident!("operator") {
                     *last = ident!("operator/");
                 }
 
@@ -783,7 +783,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
         relative_type_location: &mut Option<Location>,
         each: &Ident,
     ) {
-        if each == "var" {
+        if *each == ident!("var") {
             *var_type = Some(VarTypeBuilder::default());
         } else if let Some(var_type) = var_type.as_mut() {
             if let Some(flag) = VarTypeFlags::from_ident(each) {
@@ -899,7 +899,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
         }
 
         // parse operator overloading definitions
-        if *last_part == "operator"
+        if *last_part == ident!("operator")
             && let Some(operator_x) = self.try_read_operator_name()?
         {
             *last_part = operator_x;
@@ -1044,7 +1044,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
                     docs.push(comment);
                 }
 
-                if last_part == "var" {
+                if *last_part == ident!("var") {
                     self.error("`var;` item has no effect")
                         .with_severity(Severity::Warning)
                         .register(self.context);
@@ -1338,7 +1338,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
                 crate::ast::Ident::default()
             },
         };
-        if path.first().is_some_and(|i| i == "var") {
+        if path.first().is_some_and(|i| *i == ident!("var")) {
             path.remove(0);
             DMError::new(leading_loc, "`var/` is unnecessary here")
                 .with_severity(Severity::Hint)
@@ -1400,7 +1400,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
     /// Parse an optional 'as' input_type and 'in' expression pair.
     fn input_specifier(&mut self) -> Status<(Option<InputType>, Option<Expression>)> {
         // as obj|turf
-        let input_type = if let Some(()) = self.exact_ident("as")? {
+        let input_type = if let Some(()) = self.exact_ident(ident!("as"))? {
             Some(require!(self.input_type()))
         } else {
             None
@@ -1410,7 +1410,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
         if let Some(()) = self.exact(Token::Punct(Punctuation::In))? {
             in_list = Some(require!(self.expression()));
             // in case it is out of order
-            if let Some(()) = self.exact_ident("as")? {
+            if let Some(()) = self.exact_ident(ident!("as"))? {
                 self.error("`as` clause should precede `in` clause, and is being ignored")
                     .with_errortype("in_precedes_as")
                     .with_severity(Severity::Warning)
@@ -1425,7 +1425,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
 
     /// Parse an optional as return type signifier (for procs)
     fn return_type(&mut self, proc_builder: Option<ProcDeclBuilder>) -> Status<ProcReturnType> {
-        if self.exact_ident("as")?.is_none() {
+        if self.exact_ident(ident!("as"))?.is_none() {
             return try_another();
         }
 
@@ -1516,7 +1516,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
         let spanned = |v| success(Spanned::new(start, v));
 
         // BLOCK STATEMENTS
-        if let Some(()) = self.exact_ident("if")? {
+        if let Some(()) = self.exact_ident(ident!("if"))? {
             // statement :: 'if' '(' expression ')' block ('else' 'if' '(' expression ')' block)* ('else' block)?
             require!(self.exact(Token::Punct(Punctuation::LParen)));
             let expr = Spanned::new(self.location(), require!(self.expression()));
@@ -1526,8 +1526,8 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
 
             let mut else_arm = None;
             self.skip_phantom_semicolons()?;
-            while let Some(()) = self.exact_ident("else")? {
-                if let Some(()) = self.exact_ident("if")? {
+            while let Some(()) = self.exact_ident(ident!("else"))? {
+                if let Some(()) = self.exact_ident(ident!("if"))? {
                     require!(self.exact(Token::Punct(Punctuation::LParen)));
                     let expr = Spanned::new(self.location(), require!(self.expression()));
                     require!(self.exact(Token::Punct(Punctuation::RParen)));
@@ -1541,7 +1541,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
             }
 
             spanned(Statement::If { arms, else_arm })
-        } else if let Some(()) = self.exact_ident("while")? {
+        } else if let Some(()) = self.exact_ident(ident!("while"))? {
             // statement :: 'while' '(' expression ')' block
             require!(self.exact(Token::Punct(Punctuation::LParen)));
             let condition = Spanned::new(self.location, require!(self.expression()));
@@ -1551,11 +1551,11 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
                 condition: Box::new(condition),
                 block,
             })
-        } else if let Some(()) = self.exact_ident("do")? {
+        } else if let Some(()) = self.exact_ident(ident!("do"))? {
             // statement :: 'do' block 'while' '(' expression ')' ';'
             let block = require!(self.block());
             self.skip_phantom_semicolons()?;
-            require!(self.exact_ident("while"));
+            require!(self.exact_ident(ident!("while")));
             require!(self.exact(Token::Punct(Punctuation::LParen)));
             let condition = Spanned::new(self.location(), require!(self.expression()));
             require!(self.exact(Token::Punct(Punctuation::RParen)));
@@ -1564,7 +1564,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
                 block,
                 condition: Box::new(condition),
             })
-        } else if let Some(()) = self.exact_ident("for")? {
+        } else if let Some(()) = self.exact_ident(ident!("for"))? {
             // for ()
             // for (Var [as Type] [in List]) Statement
             // for (Init, Test, Inc) Statement
@@ -1574,7 +1574,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
             let init = self.simple_statement(true, vars)?;
 
             // We do this here otherwise it's consumed after the comma (for key-value loops with typed keys)
-            let key_input_type = if let Some(()) = self.exact_ident("as")? {
+            let key_input_type = if let Some(()) = self.exact_ident(ident!("as"))? {
                 Some(require!(self.input_type()))
             } else {
                 None
@@ -1677,7 +1677,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
                         None => (Some(vs.var_type), vs.name),
                         Some(value) => {
                             // for(var/a = 1 to
-                            require!(self.exact_ident("to"));
+                            require!(self.exact_ident(ident!("to")));
                             let rhs = require!(self.expression());
                             return spanned(require!(self.for_range(
                                 Some(vs.var_type),
@@ -1697,7 +1697,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
                             Some(Term::Ident(name)) => name,
                             _ => return Err(self.error("for-list must start with variable")),
                         };
-                        require!(self.exact_ident("to"));
+                        require!(self.exact_ident(ident!("to")));
                         let to_rhs = require!(self.expression());
                         return spanned(require!(self.for_range(None, name, *rhs, to_rhs)));
                     },
@@ -1738,7 +1738,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
                     _ => return Err(self.error("for-list must start with variable")),
                 };
 
-                let input_type = if let Some(()) = self.exact_ident("as")? {
+                let input_type = if let Some(()) = self.exact_ident(ident!("as"))? {
                     // for(var/a as obj
                     Some(require!(self.input_type()))
                 } else {
@@ -1747,7 +1747,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
 
                 let in_list = if let Some(()) = self.exact(Token::Punct(Punctuation::In))? {
                     let value = require!(self.expression());
-                    if let Some(()) = self.exact_ident("to")? {
+                    if let Some(()) = self.exact_ident(ident!("to"))? {
                         let rhs = require!(self.expression());
                         return spanned(require!(self.for_range(var_type, name, value, rhs)));
                     }
@@ -1770,7 +1770,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
                     block: require!(self.block()),
                 })
             }
-        } else if let Some(()) = self.exact_ident("spawn")? {
+        } else if let Some(()) = self.exact_ident(ident!("spawn"))? {
             let expr;
             if let Some(()) = self.exact(Token::Punct(Punctuation::LParen))? {
                 expr = self.expression()?;
@@ -1782,14 +1782,14 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
                 delay: expr,
                 block: require!(self.block()),
             })
-        } else if let Some(()) = self.exact_ident("switch")? {
+        } else if let Some(()) = self.exact_ident(ident!("switch"))? {
             require!(self.exact(Token::Punct(Punctuation::LParen)));
             let expr = require!(self.expression());
             require!(self.exact(Token::Punct(Punctuation::RParen)));
             require!(self.exact(Token::Punct(Punctuation::LBrace)));
             let mut cases = Vec::new();
             let default = loop {
-                if let Some(()) = self.exact_ident("if")? {
+                if let Some(()) = self.exact_ident(ident!("if"))? {
                     require!(self.exact(Token::Punct(Punctuation::LParen)));
                     let what = require!(self.separated(
                         Punctuation::Comma,
@@ -1803,7 +1803,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
                     }
                     let block = require!(self.block());
                     cases.push((Spanned::new(self.location(), what), block));
-                } else if let Some(()) = self.exact_ident("else")? {
+                } else if let Some(()) = self.exact_ident(ident!("else"))? {
                     break Some(require!(self.block()));
                 } else if let Some(()) = self.exact(Token::Punct(Punctuation::Semicolon))? {
                     // Tolerate stray semicolons here because inert doc
@@ -1818,10 +1818,10 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
                 cases: cases.into_boxed_slice(),
                 default,
             })
-        } else if let Some(()) = self.exact_ident("try")? {
+        } else if let Some(()) = self.exact_ident(ident!("try"))? {
             let try_block = require!(self.block());
             self.skip_phantom_semicolons()?;
-            require!(self.exact_ident("catch"));
+            require!(self.exact_ident(ident!("catch")));
             let catch_params = if let Some(()) = self.exact(Token::Punct(Punctuation::LParen))? {
                 require!(
                     self.separated(Punctuation::Comma, Punctuation::RParen, None, |this| {
@@ -1840,7 +1840,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
                 catch_block,
             })
         // SINGLE-LINE STATEMENTS
-        } else if let Some(()) = self.exact_ident("set")? {
+        } else if let Some(()) = self.exact_ident(ident!("set"))? {
             let name = require!(self.ident());
             let mode = if let Some(()) = self.exact(Token::Punct(Punctuation::Assign))? {
                 SettingMode::Assign
@@ -1852,15 +1852,15 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
             let value = require!(self.expression());
             require!(self.statement_terminator());
             spanned(Statement::Setting { name, mode, value })
-        } else if let Some(()) = self.exact_ident("break")? {
+        } else if let Some(()) = self.exact_ident(ident!("break"))? {
             let label = self.ident()?;
             require!(self.statement_terminator());
             spanned(Statement::Break(label))
-        } else if let Some(()) = self.exact_ident("continue")? {
+        } else if let Some(()) = self.exact_ident(ident!("continue"))? {
             let label = self.ident()?;
             require!(self.statement_terminator());
             spanned(Statement::Continue(label))
-        } else if let Some(()) = self.exact_ident("del")? {
+        } else if let Some(()) = self.exact_ident(ident!("del"))? {
             let expr = require!(self.expression());
             require!(self.statement_terminator());
             spanned(Statement::Del(expr))
@@ -1920,7 +1920,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
         in_for: bool,
         vars: &mut Vec<(Location, VarType, Ident)>,
     ) -> Status<Statement> {
-        if let Some(()) = self.exact_ident("var")? {
+        if let Some(()) = self.exact_ident(ident!("var"))? {
             // statement :: 'var' type_path name ('=' value)
             let mut var_stmts = Vec::new();
             loop {
@@ -2000,23 +2000,23 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
             } else {
                 success(Statement::Vars(var_stmts))
             }
-        } else if let Some(()) = self.exact_ident("return")? {
+        } else if let Some(()) = self.exact_ident(ident!("return"))? {
             // statement :: 'return' ';'
             // statement :: 'return' expression ';'
             let expression = self.expression()?;
             success(Statement::Return(expression))
-        } else if let Some(()) = self.exact_ident("CRASH")? {
+        } else if let Some(()) = self.exact_ident(ident!("CRASH"))? {
             // statement :: 'CRASH' '(' ')'
             // statement :: 'CRASH' '(' expression ')'
             require!(self.exact(Token::Punct(Punctuation::LParen)));
             let expression = self.expression()?;
             require!(self.exact(Token::Punct(Punctuation::RParen)));
             success(Statement::Crash(expression))
-        } else if let Some(()) = self.exact_ident("throw")? {
+        } else if let Some(()) = self.exact_ident(ident!("throw"))? {
             // statement :: 'throw' expression ';'
             let expression = require!(self.expression());
             success(Statement::Throw(expression))
-        } else if let Some(()) = self.exact_ident("goto")? {
+        } else if let Some(()) = self.exact_ident(ident!("goto"))? {
             // statement :: 'goto' ident ';'
             let label_name = require!(self.ident());
             success(Statement::Goto(label_name))
@@ -2039,7 +2039,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
         end: Expression,
     ) -> Status<Statement> {
         // step 2
-        let step = if let Some(()) = self.exact_ident("step")? {
+        let step = if let Some(()) = self.exact_ident(ident!("step"))? {
             Some(require!(self.expression()))
         } else {
             None
@@ -2075,7 +2075,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
 
     fn case(&mut self) -> Status<Case> {
         let first = require!(self.expression());
-        if let Some(()) = self.exact_ident("to")? {
+        if let Some(()) = self.exact_ident(ident!("to"))? {
             success(Case::Range(first, require!(self.expression())))
         } else {
             success(Case::Exact(first))
@@ -2251,7 +2251,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
         // Handle ternary ops... they should have their own precedence or else.
         if prev_op.strength == Strength::In {
             // "in" is optionally ternary: (x in 1 to 5)
-            if let Some(()) = self.exact_ident("to")? {
+            if let Some(()) = self.exact_ident(ident!("to"))? {
                 rhs = Expression::BinaryOp {
                     op: BinaryOp::To,
                     lhs: Box::new(rhs),
@@ -2382,7 +2382,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
         self.expected("proc call");
         let term = take_match!(self {
             // term :: 'new' (prefab | (ident field*))? arglist?
-            Token::Ident(i, _) if i == "new" => {
+            Token::Ident(i, _) if *i == ident!("new") => {
                 // It's not entirely clear what is supposed to be valid here.
                 // Some things definitely are:
                 //   * new()
@@ -2444,24 +2444,24 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
             // TODO: list arguments are actually subtly different, but
             // we're going to pretend they're not to make code simpler, and
             // anyone relying on the difference needs to fix their garbage
-            Token::Ident(i, _) if i == "list" => match self.arguments(&[], &ident!("list"))? {
+            Token::Ident(i, _) if *i == ident!("list") => match self.arguments(&[], &ident!("list"))? {
                 Some(args) => Term::List(args),
                 None => Term::Ident(i.to_owned()),
             },
 
-            Token::Ident(i, _) if i == "alist" => match self.arguments(&[], &ident!("alist"))? {
+            Token::Ident(i, _) if *i == ident!("alist") => match self.arguments(&[], &ident!("alist"))? {
                 Some(args) => Term::List(args),
                 None => Term::Ident(i.to_owned()),
             },
 
             // term :: 'call' arglist arglist
-            Token::Ident(i, _) if i == "call" => Term::DynamicCall(
+            Token::Ident(i, _) if *i == ident!("call") => Term::DynamicCall(
                 require!(self.arguments(&[], &ident!("call"))),
                 require!(self.arguments(&[], &ident!("call*"))),
             ),
 
             // term :: 'call_ext' ([library,] function) arglist
-            Token::Ident(i, _) if i == "call_ext" => {
+            Token::Ident(i, _) if *i == ident!("call_ext") => {
                 require!(self.exact(Token::Punct(Punctuation::LParen)));
                 let first = require!(self.expression());
                 let second = if self.exact(Token::Punct(Punctuation::Comma))?.is_some() {
@@ -2489,7 +2489,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
             },
 
             // term :: 'input' arglist input_specifier
-            Token::Ident(i, _) if i == "input" => match self.arguments(&[], &ident!("input"))? {
+            Token::Ident(i, _) if *i == ident!("input") => match self.arguments(&[], &ident!("input"))? {
                 Some(args) => {
                     let (input_type, in_list) = require!(self.input_specifier());
                     Term::Input {
@@ -2502,7 +2502,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
             },
 
             // term :: 'locate' arglist ('in' expression)?
-            Token::Ident(i, _) if i == "locate" => match self.arguments(&[], &ident!("locate"))? {
+            Token::Ident(i, _) if *i == ident!("locate") => match self.arguments(&[], &ident!("locate"))? {
                 Some(args) => {
                     // warn against this mistake
                     if let Some(&Expression::BinaryOp { op: BinaryOp::In, .. } ) = args.first() {
@@ -2528,34 +2528,34 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
             },
 
             // term :: 'pick' pick_arglist
-            Token::Ident(i, _) if i == "pick" => match self.pick_arguments()? {
+            Token::Ident(i, _) if *i == ident!("pick") => match self.pick_arguments()? {
                 Some(args) => Term::Pick(args),
                 None => Term::Ident(i.to_owned()),
             },
 
-            Token::Ident(i, _) if i == "null" => Term::Null,
+            Token::Ident(i, _) if *i == ident!("null") => Term::Null,
 
             // term :: 'as' '(' input_type ')'
-            Token::Ident(i, _) if i == "as" => {
+            Token::Ident(i, _) if *i == ident!("as") => {
                 require!(self.exact(Token::Punct(Punctuation::LParen)));
                 let input_type = self.input_type()?.unwrap_or_else(InputType::empty);
                 require!(self.exact(Token::Punct(Punctuation::RParen)));
                 Term::As(input_type)
             },
             // term :: __PROC__
-            Token::Ident(i, _) if i == "__PROC__" => {
+            Token::Ident(i, _) if *i == ident!("__PROC__") => {
                 // We cannot replace with the proc path yet, you don't need one it's fine
                 Term::__PROC__
             },
 
             // term :: __TYPE__
-            Token::Ident(i, _) if i == "__TYPE__" => {
+            Token::Ident(i, _) if *i == ident!("__TYPE__") => {
                 // We cannot replace with the typepath yet, so we'll hand back a term we can parse later
                 Term::__TYPE__
             },
 
             // term :: __IMPLIED_TYPE__
-            Token::Ident(i, _) if i == "__IMPLIED_TYPE__" => {
+            Token::Ident(i, _) if *i == ident!("__IMPLIED_TYPE__") => {
                 // We cannot replace with the typepath yet, so we'll hand back a term we can parse later
                 Term::__IMPLIED_TYPE__
             },

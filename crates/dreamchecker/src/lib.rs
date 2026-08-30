@@ -5,10 +5,10 @@
 use bitflags::bitflags;
 
 extern crate dreammaker as dm;
-use dm::ast::*;
 use dm::constants::{ConstFn, Constant};
 use dm::objtree::{ObjectTree, ProcRef, TypeRef};
 use dm::{Context, DMError, Location, Severity};
+use dm::{ast::*, ident};
 
 use foldhash::{HashMap, HashMapExt, HashSet, HashSetExt};
 use std::collections::{BTreeMap, VecDeque};
@@ -513,8 +513,8 @@ pub fn directive_value_to_truthy(expr: &Expression, location: Location) -> Resul
     match expr.as_term() {
         Some(Term::Int(0)) => Ok(false),
         Some(Term::Int(1)) => Ok(true),
-        Some(Term::Ident(i)) if i == "FALSE" => Ok(false),
-        Some(Term::Ident(i)) if i == "TRUE" => Ok(true),
+        Some(Term::Ident(i)) if *i == ident!("FALSE") => Ok(false),
+        Some(Term::Ident(i)) if *i == ident!("TRUE") => Ok(true),
         _ => Err(error(location, format!("invalid value for set {expr:?}"))
             .with_severity(Severity::Warning)),
     }
@@ -996,7 +996,7 @@ impl<'o> AnalyzeObjectTree<'o> {
                 ..
             } = statement.elem
             {
-                if name == "SpacemanDMM_return_type" {
+                if *name == ident!("SpacemanDMM_return_type") {
                     if let Some(Term::Prefab(fab)) = value.as_term() {
                         let bits: Vec<_> =
                             fab.path.iter().map(|(_, name)| name.to_owned()).collect();
@@ -1205,7 +1205,7 @@ fn static_type<'o>(
 
     if of.is_empty() {
         Ok(StaticType::None)
-    } else if of[0] == "list" {
+    } else if of[0] == ident!("list") {
         let keys = static_type(objtree, location, &of[1..])?;
         Ok(StaticType::List {
             list: objtree.expect("/list"),
@@ -1243,10 +1243,10 @@ pub fn check_var_defs(objtree: &ObjectTree, context: &Context) {
             }
 
             for (varname, typevar) in typeref.vars.iter() {
-                if varname == "vars" {
+                if *varname == ident!("vars") {
                     continue;
                 }
-                if path == "/client" && varname == "parent_type" {
+                if path == "/client" && *varname == ident!("parent_type") {
                     continue;
                 }
 
@@ -1936,12 +1936,12 @@ impl<'o, 's> AnalyzeProc<'o, 's> {
                 mode: SettingMode::Assign,
                 value,
             } => {
-                if name != "waitfor" {
+                if *name != ident!("waitfor") {
                     return ControlFlow::allfalse();
                 }
                 if match value.as_term() {
                     Some(Term::Int(0)) => true,
-                    Some(Term::Ident(i)) if i == "FALSE" => true,
+                    Some(Term::Ident(i)) if *i == ident!("FALSE") => true,
                     _ => false,
                 } {
                     self.env.waitfor_procs.insert(self.proc_ref);
@@ -2035,7 +2035,7 @@ impl<'o, 's> AnalyzeProc<'o, 's> {
                         None => continue,
                     };
                     match type_path.split_first() {
-                        Some((first, rest)) if first == "var" => type_path = rest,
+                        Some((first, rest)) if *first == ident!("var") => type_path = rest,
                         _ => {},
                     }
                     let var_type: VarType = type_path.iter().map(ToOwned::to_owned).collect();
@@ -2389,7 +2389,7 @@ impl<'o, 's> AnalyzeProc<'o, 's> {
                     var.analysis
                         .clone()
                         .with_fix_hint(var.location, "add additional type info here")
-                } else if unscoped_name == "type" {
+                } else if *unscoped_name == ident!("type") {
                     // Strictly speaking "type" might be any subset of our current type, but let's return something useful
                     // so that `nameof(type::foo)` is sensible.
                     let ty = self.ty;
@@ -2470,13 +2470,13 @@ impl<'o, 's> AnalyzeProc<'o, 's> {
                 if let Some(proc) = self.ty.get_proc(unscoped_name) {
                     // Unscoped call: runs on the current object, receiver inherited.
                     self.visit_call(location, src, proc, args, false, true, local_vars)
-                } else if unscoped_name == "__PROC__" {
+                } else if *unscoped_name == ident!("__PROC__") {
                     self.visit_call(location, src, self.proc_ref, args, false, true, local_vars)
-                } else if unscoped_name == "SpacemanDMM_unlint" {
+                } else if *unscoped_name == ident!("SpacemanDMM_unlint") {
                     // Escape hatch for cases like `src` in macros used in
                     // global procs.
                     Analysis::empty()
-                } else if unscoped_name == "SpacemanDMM_debug" {
+                } else if *unscoped_name == ident!("SpacemanDMM_debug") {
                     eprintln!("SpacemanDMM_debug:");
                     for arg in args.iter() {
                         eprintln!(
@@ -2804,7 +2804,7 @@ impl<'o, 's> AnalyzeProc<'o, 's> {
                     }
                     Analysis::empty()
                 } else if let Some(ty) = lhs.static_ty.basic_type() {
-                    if ty.path == "/callee" && name == "proc" {
+                    if ty.path == "/callee" && *name == ident!("proc") {
                         // Special cased for now because this might be the only place it appears?
                         // Or maybe we should also handle new procpath() returning a procpath.
                         Analysis::from(StaticType::Proc)
@@ -3162,7 +3162,7 @@ impl<'o, 's> AnalyzeProc<'o, 's> {
                 }
                 match &term.elem {
                     Term::Ident(flagname) => {
-                        if !valid_flags.iter().any(|&x| x == flagname) {
+                        if !valid_flags.iter().any(|&x| x == flagname.as_str()) {
                             error(location, format!("filter(type=\"{typevalue}\") called with invalid '{flagfieldname}' flag '{flagname}'"))
                                 .with_filter_args(location, typevalue)
                                 .register(self.context);
@@ -3320,8 +3320,8 @@ impl<'o, 's> AnalyzeProc<'o, 's> {
 
             let analysis = self.visit_expression(location, argument_value, None, local_vars);
             if let Some(kw) = this_kwarg {
-                param_name_map.insert(kw, analysis);
-                param_expr_map.insert(kw, argument_value);
+                param_name_map.insert(kw.as_str(), analysis);
+                param_expr_map.insert(kw.as_str(), argument_value);
             } else {
                 param_idx_map.insert(param_idx, analysis);
                 param_idx += 1;
@@ -3390,8 +3390,8 @@ impl<'o, 's> AnalyzeProc<'o, 's> {
                 .register(self.context);
                 return Analysis::empty();
             };
-            for arg in param_name_map.keys() {
-                if *arg != "type" && *arg != "name" && !arglist.contains(arg) {
+            for &arg in param_name_map.keys() {
+                if arg != "type" && arg != "name" && !arglist.contains(&arg) {
                     error(location, format!("filter(type=\"{typevalue}\") called with invalid keyword parameter '{arg}'"))
                         .with_filter_args(location, typevalue)
                         .register(self.context);

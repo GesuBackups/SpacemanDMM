@@ -11,6 +11,7 @@ dreammaker_macros::static_strings! {
     "__PROC__",
     "__TYPE__",
     "__VA_ARGS__",
+    "_",
     "_binobj",
     "_dm_db_close",
     "_dm_db_columns",

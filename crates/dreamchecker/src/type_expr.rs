@@ -3,10 +3,10 @@
 
 use foldhash::HashMap;
 
-use dm::ast::*;
 use dm::constants::Constant;
 use dm::objtree::{ObjectTree, ProcRef};
 use dm::{DMError, Location};
+use dm::{ast::*, ident};
 
 use crate::{Analysis, StaticType};
 
@@ -220,7 +220,7 @@ impl<'o> TypeExprCompiler<'o> {
         match rhs {
             // X[_] => static type of argument X with one /list stripped
             Follow::Index(_, expr) => match expr.as_term() {
-                Some(Term::Ident(name)) if name == "_" => match lhs {
+                Some(Term::Ident(name)) if *name == ident!("_") => match lhs {
                     TypeExpr::ParamTypepath {
                         name,
                         p_idx,
@@ -242,7 +242,7 @@ impl<'o> TypeExprCompiler<'o> {
             },
 
             // X.type => static type of argument X
-            Follow::Field(_, name) if name == "type" => match lhs {
+            Follow::Field(_, name) if *name == ident!("type") => match lhs {
                 TypeExpr::ParamTypepath {
                     name,
                     p_idx,

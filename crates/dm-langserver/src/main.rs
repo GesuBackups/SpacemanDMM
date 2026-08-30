@@ -35,10 +35,10 @@ mod jrpc_io;
 mod symbol_search;
 
 use crate::extras::{QueryObjectTree, Reparse, SetTraceVsc, StartDebugger};
-use dm::FileId;
 use dm::annotation::{Annotation, AnnotationTree};
 use dm::ast::Ident;
 use dm::objtree::TypeRef;
+use dm::{FileId, ident};
 use foldhash::{HashMap, HashMapExt, HashSet, HashSetExt};
 use jsonrpc::{Call, Output, Response};
 use lsp_types::{notification::*, request::*, *};
@@ -840,7 +840,7 @@ impl Engine {
             }
 
             match proc_path.split_last() {
-                Some((kwd, rest)) if kwd == "proc" || kwd == "verb" => proc_path = rest,
+                Some((kwd, rest)) if *kwd == ident!("proc") || *kwd == ident!("verb") => proc_path = rest,
                 _ => {}
             }
             found = self.objtree.type_by_path(proc_path);
@@ -850,7 +850,7 @@ impl Engine {
                 // cut off if we're in a declaration block
                 let mut tree_path = &tree_path[..];
                 match tree_path.split_last() {
-                    Some((kwd, rest)) if kwd == "proc" || kwd == "verb" || kwd == "var" => tree_path = rest,
+                    Some((kwd, rest)) if *kwd == ident!("proc") || *kwd == ident!("verb") || *kwd == ident!("var") => tree_path = rest,
                     _ => {}
                 }
                 found = self.objtree.type_by_path(tree_path);
@@ -872,7 +872,7 @@ impl Engine {
         // local variables
         for (span, annotation) in iter.clone() {
             if let Annotation::LocalVarScope(var_type, name) = annotation
-                && name == var_name
+                && name.as_str() == var_name
             {
                 return UnscopedVar::Local {
                     loc: span.start,
@@ -888,7 +888,7 @@ impl Engine {
             && let Some(value) = proc.value.get(idx)
         {
             for param in value.parameters.iter() {
-                if param.name == var_name {
+                if param.name.as_str() == var_name {
                     return UnscopedVar::Parameter {
                         ty,
                         proc: proc_name,
@@ -920,15 +920,15 @@ impl Engine {
             Some(i) => i,
             None => return next, // empty priors acts like unscoped
         };
-        if first == "args" {
+        if *first == ident!("args") {
             next = self.objtree.find("/list");
-        } else if first == "global" {
+        } else if *first == ident!("global") {
             next = Some(self.objtree.root());
-        } else if first == "src" {
+        } else if *first == ident!("src") {
             // nothing
-        } else if first == "usr" {
+        } else if *first == ident!("usr") {
             next = self.objtree.find("/mob");
-        } else if first == "caller" || first == "callee" {
+        } else if *first == ident!("caller") || *first == ident!("callee") {
             next = self.objtree.find("/callee");
         } else {
             next = match self.find_unscoped_var(iter, next, proc_name, first) {
@@ -979,7 +979,7 @@ impl Engine {
                 let mut current = self.objtree.root();
                 let (var_name, most) = path.split_last().unwrap();
                 for part in most {
-                    if part == "var" { break }
+                    if *part == ident!("var") { break }
                     if let Some(child) = current.child(part) {
                         current = child;
                     } else {
@@ -995,7 +995,7 @@ impl Engine {
                 let mut current = self.objtree.root();
                 let (proc_name, most) = parts.split_last().unwrap();
                 for part in most {
-                    if part == "proc" || part == "verb" { break }
+                    if *part == ident!("proc") || *part == ident!("verb") { break }
                     if let Some(child) = current.child(part) {
                         current = child;
                     } else {
@@ -1567,7 +1567,7 @@ impl Engine {
                     let mut current = objtree.root();
                     let (last, most) = path.split_last().unwrap();
                     for part in most {
-                        if part == "var" {
+                        if *part == ident!("var") {
                             break;
                         }
                         if let Some(child) = current.child(part) {
@@ -1617,7 +1617,7 @@ impl Engine {
                     let mut current = objtree.root();
                     let (last, most) = path.split_last().unwrap();
                     for part in most {
-                        if part == "proc" || part == "verb" {
+                        if *part == ident!("proc") || *part == ident!("verb") {
                             break;
                         }
                         if let Some(child) = current.child(part) {
@@ -2141,11 +2141,11 @@ impl Engine {
                 rest.get(skip_front..).and_then(|i| {
                     i.iter()
                         .rev()
-                        .find(|x| {
+                        .find(|&x| {
                             dm::ast::ProcDeclKind::from_name(x).is_none()
                                 && dm::ast::ProcFlags::from_ident(x).is_none()
                                 && dm::ast::VarTypeFlags::from_ident(x).is_none()
-                                && *x != "var"
+                                && *x != ident!("var")
                         })
                         .map(|i| i.to_string())
                 }),
@@ -2212,13 +2212,14 @@ impl Engine {
                             continue;
                         }
                         let (name, detail) = name_and_detail(path, skip_front);
-                        let kind = if path.len() == 1 || (path.len() == 2 && path[0] == "proc") {
-                            SymbolKind::FUNCTION
-                        } else if is_constructor_name(&name) {
-                            SymbolKind::CONSTRUCTOR
-                        } else {
-                            SymbolKind::METHOD
-                        };
+                        let kind =
+                            if path.len() == 1 || (path.len() == 2 && path[0] == ident!("proc")) {
+                                SymbolKind::FUNCTION
+                            } else if is_constructor_name(&name) {
+                                SymbolKind::CONSTRUCTOR
+                            } else {
+                                SymbolKind::METHOD
+                            };
                         result.push(DocumentSymbol {
                             name,
                             detail,

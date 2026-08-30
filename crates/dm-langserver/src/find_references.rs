@@ -1,5 +1,6 @@
 //! The symbol table used for "Find References" support.
 
+use dm::ident;
 use foldhash::{HashMap, HashMapExt};
 
 use dm::Location;
@@ -381,7 +382,7 @@ impl<'o> WalkProc<'o> {
                         None => continue,
                     };
                     match type_path.split_first() {
-                        Some((first, rest)) if first == "var" => type_path = rest,
+                        Some((first, rest)) if *first == ident!("var") => type_path = rest,
                         _ => {},
                     }
                     let var_type: VarType = type_path.iter().map(ToOwned::to_owned).collect();
@@ -898,7 +899,7 @@ impl<'o> WalkProc<'o> {
 
         if of.is_empty() {
             StaticType::None
-        } else if of[0] == "list" {
+        } else if of[0] == ident!("list") {
             let keys = self.static_type(location, &of[1..]);
             StaticType::List {
                 list: self.objtree.expect("/list"),

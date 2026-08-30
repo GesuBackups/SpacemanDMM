@@ -1,5 +1,6 @@
 //! Supporting functions for completion and go-to-definition.
 
+use dm::ident;
 use foldhash::{HashSet, HashSetExt};
 
 use lsp_types::*;
@@ -143,13 +144,13 @@ where
         parts = &parts[..::std::cmp::min(idx+1, parts.len())];
     }}
     // if we're on the right side of a 'var/', start the lookup there
-    if let Some(i) = parts.iter().position(|x| x == "var") {
+    if let Some(i) = parts.iter().position(|x| *x == ident!("var")) {
         parts = &parts[i + 1..];
         absolute = true;
     }
     // if we're on the right side of a 'list/', start the lookup there
     while let Some((first, rest)) = parts.split_first() {
-        if first == "list" {
+        if *first == ident!("list") {
             parts = rest;
         } else {
             break;
@@ -160,7 +161,7 @@ where
     if !absolute {
         if_annotation! { Annotation::TreeBlock(parts) in iter; {
             prefix_parts = parts;
-            if let Some(i) = prefix_parts.iter().position(|x| x == "var") {
+            if let Some(i) = prefix_parts.iter().position(|x| *x == ident!("var")) {
                 // if we're inside a 'var' block, start the lookup there
                 prefix_parts = &prefix_parts[i+1..];
             }
@@ -185,7 +186,9 @@ impl Engine {
         }}
         // if we're on the right side of a 'list/', start the lookup there
         match parts.split_first() {
-            Some(((PathOp::Slash, kwd), rest)) if kwd == "list" && !rest.is_empty() => parts = rest,
+            Some(((PathOp::Slash, kwd), rest)) if *kwd == ident!("list") && !rest.is_empty() => {
+                parts = rest
+            },
             _ => {},
         }
 
@@ -210,10 +213,10 @@ impl Engine {
         let mut iter = parts.iter();
         let mut decl = None;
         for &(op, ref name) in iter.by_ref() {
-            if name == "proc" {
+            if *name == ident!("proc") {
                 decl = Some("proc");
                 break;
-            } else if name == "verb" {
+            } else if *name == ident!("verb") {
                 decl = Some("verb");
                 break;
             }

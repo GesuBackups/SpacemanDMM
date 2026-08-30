@@ -619,7 +619,7 @@ impl<'a> ProcRef<'a> {
 
     /// Check whether this proc is indicated to be varargs.
     pub fn is_varargs(self) -> bool {
-        self.parameters.iter().any(|p| p.name == "...")
+        self.parameters.iter().any(|p| p.name == ident!("..."))
     }
 
     /// Get the declaration corresponding to this proc reference.

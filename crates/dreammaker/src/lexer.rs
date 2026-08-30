@@ -326,7 +326,7 @@ impl Token {
     }
 
     /// Check whether this token matches a given identifier.
-    pub fn is_ident(&self, ident: &str) -> bool {
+    pub fn is_ident(&self, ident: &Ident) -> bool {
         match *self {
             Token::Ident(ref i, _) => i == ident,
             _ => false,
@@ -1290,14 +1290,14 @@ impl<'ctx> Iterator for Lexer<'ctx> {
                     b'_' | b'a'..=b'z' | b'A'..=b'Z' => {
                         let (ident, ws) = self.read_ident(first);
                         if self.directive == Directive::Hash {
-                            if ident == "warn" || ident == "error" {
+                            if ident == ident!("warn") || ident == ident!("error") {
                                 self.directive = Directive::Stringy;
                             } else {
                                 self.directive = Directive::Ordinary;
                             }
                         }
                         // check keywords
-                        if ident == "in" {
+                        if ident == ident!("in") {
                             return Some(locate(Punct(In)));
                         }
                         self.close_allowed = true;

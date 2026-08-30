@@ -158,7 +158,7 @@ var/global/bill = 1
             };
             match &follow.first().unwrap().elem {
                 Follow::StaticField(field) => {
-                    if field != "base" {
+                    if field.as_str() != "base" {
                         panic!("/datum/test::base did not eval base as the var to read")
                     }
                 },
@@ -181,7 +181,7 @@ var/global/bill = 1
             };
             match &follow.first().unwrap().elem {
                 Follow::StaticField(field) => {
-                    if field != "stat" {
+                    if field.as_str() != "stat" {
                         panic!("larry::stat did not eval stat as the var to read")
                     }
                 },
@@ -205,7 +205,7 @@ var/global/bill = 1
             };
             match &follow.first().unwrap().elem {
                 Follow::ProcReference(proc_name) => {
-                    if proc_name != "reference" {
+                    if proc_name.as_str() != "reference" {
                         panic!(
                             "/datum/test::reference() did not eval reference() as the ref to read"
                         )
@@ -230,7 +230,7 @@ var/global/bill = 1
             };
             match &follow.first().unwrap().elem {
                 Follow::StaticField(field) => {
-                    if field != "stat" {
+                    if field.as_str() != "stat" {
                         panic!("/datum/test::stat did not eval stat as the var to set")
                     }
                 },
@@ -246,7 +246,7 @@ var/global/bill = 1
             };
             match &term.elem {
                 Term::GlobalCall(function, _) => {
-                    if function != "extra" {
+                    if function.as_str() != "extra" {
                         panic!("::extra() did not eval extra as the proc to call")
                     }
                 },
@@ -269,7 +269,7 @@ var/global/bill = 1
             };
             match &term.elem {
                 Term::GlobalIdent(field) => {
-                    if field != "bill" {
+                    if field.as_str() != "bill" {
                         panic!("::bill did not eval bill as the global var to read")
                     }
                 },
