@@ -733,10 +733,8 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
                 // .../operator/<non-ident> = ... / "operator/"
                 // but .../operator/ident = ... / "operator" / "ident"
                 let last: &mut Ident = parts.last_mut().unwrap();
-                if last == "operator" {
-                    let mut owned = std::mem::take(last).into_owned();
-                    owned.push('/');
-                    *last = owned.into();
+                if *last == "operator" {
+                    *last = ident!("operator/");
                 }
 
                 slash_loc.column += 1;
@@ -897,10 +895,10 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
         }
 
         // parse operator overloading definitions
-        if last_part == "operator"
+        if *last_part == "operator"
             && let Some(operator_x) = self.try_read_operator_name()?
         {
-            *last_part = crate::ast::Ident::from_static(operator_x);
+            *last_part = operator_x;
         }
 
         let var_suffix = if var_type.is_some() {
@@ -1097,86 +1095,86 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
     // ------------------------------------------------------------------------
     // Object tree - Procs
 
-    fn try_read_operator_name(&mut self) -> Result<Option<&'static str>, DMError> {
+    fn try_read_operator_name(&mut self) -> Result<Option<Ident>, DMError> {
         use super::lexer::Punctuation::*;
         use super::lexer::Token::Punct;
 
         if self.exact(Punct(Mod))?.is_some() {
-            Ok(Some("operator%"))
+            Ok(Some(ident!("operator%")))
         } else if self.exact(Punct(ModAssign))?.is_some() {
-            Ok(Some("operator%="))
+            Ok(Some(ident!("operator%=")))
         } else if self.exact(Punct(FloatMod))?.is_some() {
-            Ok(Some("operator%%"))
+            Ok(Some(ident!("operator%%")))
         } else if self.exact(Punct(FloatModAssign))?.is_some() {
-            Ok(Some("operator%%="))
+            Ok(Some(ident!("operator%%=")))
         } else if self.exact(Punct(BitAnd))?.is_some() {
-            Ok(Some("operator&"))
+            Ok(Some(ident!("operator&")))
         } else if self.exact(Punct(BitAndAssign))?.is_some() {
-            Ok(Some("operator&="))
+            Ok(Some(ident!("operator&=")))
         } else if self.exact(Punct(Mul))?.is_some() {
-            Ok(Some("operator*"))
+            Ok(Some(ident!("operator*")))
         } else if self.exact(Punct(Pow))?.is_some() {
-            Ok(Some("operator**"))
+            Ok(Some(ident!("operator**")))
         } else if self.exact(Punct(MulAssign))?.is_some() {
-            Ok(Some("operator*="))
+            Ok(Some(ident!("operator*=")))
         } else if self.exact(Punct(Slash))?.is_some() {
             // Here for completeness, but REALLY handled in tree_path().
-            Ok(Some("operator/"))
+            Ok(Some(ident!("operator/")))
         } else if self.exact(Punct(DivAssign))?.is_some() {
-            Ok(Some("operator/="))
+            Ok(Some(ident!("operator/=")))
         } else if self.exact(Punct(Add))?.is_some() {
-            Ok(Some("operator+"))
+            Ok(Some(ident!("operator+")))
         } else if self.exact(Punct(PlusPlus))?.is_some() {
-            Ok(Some("operator++"))
+            Ok(Some(ident!("operator++")))
         } else if self.exact(Punct(AddAssign))?.is_some() {
-            Ok(Some("operator+="))
+            Ok(Some(ident!("operator+=")))
         } else if self.exact(Punct(Sub))?.is_some() {
-            Ok(Some("operator-"))
+            Ok(Some(ident!("operator-")))
         } else if self.exact(Punct(MinusMinus))?.is_some() {
-            Ok(Some("operator--"))
+            Ok(Some(ident!("operator--")))
         } else if self.exact(Punct(SubAssign))?.is_some() {
-            Ok(Some("operator-="))
+            Ok(Some(ident!("operator-=")))
         } else if self.exact(Punct(Less))?.is_some() {
-            Ok(Some("operator<"))
+            Ok(Some(ident!("operator<")))
         } else if self.exact(Punct(LShift))?.is_some() {
-            Ok(Some("operator<<"))
+            Ok(Some(ident!("operator<<")))
         } else if self.exact(Punct(LShiftAssign))?.is_some() {
-            Ok(Some("operator<<="))
+            Ok(Some(ident!("operator<<=")))
         } else if self.exact(Punct(LessEq))?.is_some() {
-            Ok(Some("operator<="))
+            Ok(Some(ident!("operator<=")))
         } else if self.exact(Punct(LessOrGreater))?.is_some() {
-            Ok(Some("operator<=>"))
+            Ok(Some(ident!("operator<=>")))
         } else if self.exact(Punct(Greater))?.is_some() {
-            Ok(Some("operator>"))
+            Ok(Some(ident!("operator>")))
         } else if self.exact(Punct(GreaterEq))?.is_some() {
-            Ok(Some("operator>="))
+            Ok(Some(ident!("operator>=")))
         } else if self.exact(Punct(RShift))?.is_some() {
-            Ok(Some("operator>>"))
+            Ok(Some(ident!("operator>>")))
         } else if self.exact(Punct(RShiftAssign))?.is_some() {
-            Ok(Some("operator>>="))
+            Ok(Some(ident!("operator>>=")))
         } else if self.exact(Punct(BitXor))?.is_some() {
-            Ok(Some("operator^"))
+            Ok(Some(ident!("operator^")))
         } else if self.exact(Punct(BitXorAssign))?.is_some() {
-            Ok(Some("operator^="))
+            Ok(Some(ident!("operator^=")))
         } else if self.exact(Punct(BitOr))?.is_some() {
-            Ok(Some("operator|"))
+            Ok(Some(ident!("operator|")))
         } else if self.exact(Punct(BitOrAssign))?.is_some() {
-            Ok(Some("operator|="))
+            Ok(Some(ident!("operator|=")))
         } else if self.exact(Punct(BitNot))?.is_some() {
-            Ok(Some("operator~"))
+            Ok(Some(ident!("operator~")))
         } else if self.exact(Punct(Equiv))?.is_some() {
-            Ok(Some("operator~="))
+            Ok(Some(ident!("operator~=")))
         } else if self.exact(Punct(AssignInto))?.is_some() {
-            Ok(Some("operator:="))
+            Ok(Some(ident!("operator:=")))
         } else if self.exact(Punct(LBracket))?.is_some() {
             require!(self.exact(Punct(RBracket)));
             if self.exact(Punct(Assign))?.is_some() {
-                Ok(Some("operator[]="))
+                Ok(Some(ident!("operator[]=")))
             } else {
-                Ok(Some("operator[]"))
+                Ok(Some(ident!("operator[]")))
             }
         } else if self.exact(Token::empty_string())?.is_some() {
-            Ok(Some("operator\"\""))
+            Ok(Some(ident!("operator\"\"")))
         } else {
             Ok(None)
         }
