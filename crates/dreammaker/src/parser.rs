@@ -309,17 +309,6 @@ impl TTKind {
 // ----------------------------------------------------------------------------
 // The parser
 
-#[derive(Debug)]
-enum LoopContext {
-    None,
-    ForInfinite,
-    ForLoop,
-    ForList,
-    ForRange,
-    While,
-    DoWhile,
-}
-
 /// A single-lookahead, recursive-descent DM parser.
 ///
 /// Results are accumulated into an inner [ObjectTree].
@@ -1239,7 +1228,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
                 if let Some(a) = self.annotations.as_mut() {
                     subparser.annotations = Some(*a);
                 }
-                let block = subparser.block(&LoopContext::None);
+                let block = subparser.block();
                 subparser.require(block)
             };
             if result.is_ok() {
@@ -1468,7 +1457,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
     }
 
     /// Parse a block
-    fn block(&mut self, loop_ctx: &LoopContext) -> Status<Block> {
+    fn block(&mut self) -> Status<Block> {
         let mut vars = Vec::new();
         let result = if let Some(()) = self.exact(Token::Punct(Punctuation::LBrace))? {
             let mut statements = Vec::new();
@@ -1478,7 +1467,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
                 } else if let Some(()) = self.exact(Token::Punct(Punctuation::Semicolon))? {
                     continue;
                 } else {
-                    statements.push(require!(self.statement(loop_ctx, &mut vars)));
+                    statements.push(require!(self.statement(&mut vars)));
                 }
             }
             statements
@@ -1487,7 +1476,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
             Vec::new()
         } else {
             // and one-line blocks: if(1) neat();
-            let statement = require!(self.statement(loop_ctx, &mut vars));
+            let statement = require!(self.statement(&mut vars));
             vec![statement]
         };
         for (loc, var_type, name) in vars {
@@ -1498,7 +1487,6 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
 
     fn statement(
         &mut self,
-        loop_ctx: &LoopContext,
         vars: &mut Vec<(Location, VarType, Ident)>,
     ) -> Status<Spanned<Statement>> {
         let start = self.location();
@@ -1510,7 +1498,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
             require!(self.exact(Token::Punct(Punctuation::LParen)));
             let expr = Spanned::new(self.location(), require!(self.expression()));
             require!(self.exact(Token::Punct(Punctuation::RParen)));
-            let block = require!(self.block(loop_ctx));
+            let block = require!(self.block());
             let mut arms = vec![(expr, block)];
 
             let mut else_arm = None;
@@ -1520,10 +1508,10 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
                     require!(self.exact(Token::Punct(Punctuation::LParen)));
                     let expr = Spanned::new(self.location(), require!(self.expression()));
                     require!(self.exact(Token::Punct(Punctuation::RParen)));
-                    let block = require!(self.block(loop_ctx));
+                    let block = require!(self.block());
                     arms.push((expr, block));
                 } else {
-                    else_arm = Some(require!(self.block(loop_ctx)));
+                    else_arm = Some(require!(self.block()));
                     break;
                 }
                 self.skip_phantom_semicolons()?;
@@ -1535,14 +1523,14 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
             require!(self.exact(Token::Punct(Punctuation::LParen)));
             let condition = Spanned::new(self.location, require!(self.expression()));
             require!(self.exact(Token::Punct(Punctuation::RParen)));
-            let block = require!(self.block(&LoopContext::While));
+            let block = require!(self.block());
             spanned(Statement::While {
                 condition: Box::new(condition),
                 block,
             })
         } else if let Some(()) = self.exact_ident("do")? {
             // statement :: 'do' block 'while' '(' expression ')' ';'
-            let block = require!(self.block(&LoopContext::DoWhile));
+            let block = require!(self.block());
             self.skip_phantom_semicolons()?;
             require!(self.exact_ident("while"));
             require!(self.exact(Token::Punct(Punctuation::LParen)));
@@ -1582,7 +1570,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
                     init: init.map(Box::new),
                     test: test.map(Box::new),
                     inc: inc.map(Box::new),
-                    block: require!(self.block(&LoopContext::ForLoop)),
+                    block: require!(self.block()),
                 })
             // ... copypasted but with commas
             } else if let Some(()) = self.comma()? {
@@ -1599,7 +1587,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
                         init: init.map(Box::new),
                         test: test.map(Box::new),
                         inc: inc.map(Box::new),
-                        block: require!(self.block(&LoopContext::ForLoop)),
+                        block: require!(self.block()),
                     })
                 } else {
                     // for (..., ... in ...)
@@ -1642,7 +1630,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
                                 key_input_type,
                                 value,
                                 in_list: Some(*rhs), // We'll assume the rhs of [v in x] is a list. Any other case, DM will catch anyway.
-                                block: require!(self.block(&LoopContext::ForLoop)),
+                                block: require!(self.block()),
                             })))
                         },
                         // We will just assume everything else for(k, [...]) is a two-pronged for loop
@@ -1653,7 +1641,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
                                 init: init.map(Box::new),
                                 test: test.map(Box::new),
                                 inc: inc.map(Box::new),
-                                block: require!(self.block(&LoopContext::ForLoop)),
+                                block: require!(self.block()),
                             })
                         },
                     }
@@ -1715,7 +1703,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
                                     name,
                                     input_type: None,
                                     in_list: Some(rhs),
-                                    block: require!(self.block(&LoopContext::ForList)),
+                                    block: require!(self.block()),
                                 })));
                             },
                         }
@@ -1751,12 +1739,12 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
                     name,
                     input_type,
                     in_list,
-                    block: require!(self.block(&LoopContext::ForList)),
+                    block: require!(self.block()),
                 })))
             } else {
                 require!(self.exact(Token::Punct(Punctuation::RParen)));
                 spanned(Statement::ForInfinite {
-                    block: require!(self.block(&LoopContext::ForInfinite)),
+                    block: require!(self.block()),
                 })
             }
         } else if let Some(()) = self.exact_ident("spawn")? {
@@ -1769,7 +1757,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
             }
             spanned(Statement::Spawn {
                 delay: expr,
-                block: require!(self.block(&LoopContext::None)),
+                block: require!(self.block()),
             })
         } else if let Some(()) = self.exact_ident("switch")? {
             require!(self.exact(Token::Punct(Punctuation::LParen)));
@@ -1790,10 +1778,10 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
                         self.context
                             .register_error(self.error("switch case cannot be empty"));
                     }
-                    let block = require!(self.block(loop_ctx));
+                    let block = require!(self.block());
                     cases.push((Spanned::new(self.location(), what), block));
                 } else if let Some(()) = self.exact_ident("else")? {
-                    break Some(require!(self.block(loop_ctx)));
+                    break Some(require!(self.block()));
                 } else if let Some(()) = self.exact(Token::Punct(Punctuation::Semicolon))? {
                     // Tolerate stray semicolons here because inert doc
                     // comments might synthesize them.
@@ -1808,7 +1796,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
                 default,
             })
         } else if let Some(()) = self.exact_ident("try")? {
-            let try_block = require!(self.block(loop_ctx));
+            let try_block = require!(self.block());
             self.skip_phantom_semicolons()?;
             require!(self.exact_ident("catch"));
             let catch_params = if let Some(()) = self.exact(Token::Punct(Punctuation::LParen))? {
@@ -1822,7 +1810,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
             } else {
                 Vec::new()
             };
-            let catch_block = require!(self.block(loop_ctx));
+            let catch_block = require!(self.block());
             spanned(Statement::TryCatch {
                 try_block,
                 catch_params: catch_params.into_boxed_slice(),
@@ -1864,7 +1852,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
                 // it's a label! check for a block
                 return spanned(Statement::Label {
                     name: name.to_owned(),
-                    block: require!(self.block(loop_ctx)),
+                    block: require!(self.block()),
                 });
             }
 
@@ -2042,7 +2030,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
             start,
             end,
             step,
-            block: require!(self.block(&LoopContext::ForRange)),
+            block: require!(self.block()),
         })))
     }
 
