@@ -349,13 +349,13 @@ impl fmt::Display for Token {
             Eof => f.write_str("__EOF__"),
             Punct(p) => p.fmt(f),
             Ident(ref i, _) => f.write_str(i),
-            String(ref i) => Quote(i).fmt(f),
+            String(ref i) => quote(i).fmt(f),
             InterpStringBegin(ref i) => write!(f, "\"{i}["),
             InterpStringPart(ref i) => write!(f, "]{i}["),
             InterpStringEnd(ref i) => write!(f, "]{i}\""),
             Resource(ref i) => write!(f, "'{i}'"),
-            Int(i) => FormatFloat(i as f32).fmt(f),
-            Float(i) => FormatFloat(i).fmt(f),
+            Int(i) => format_float(i as f32).fmt(f),
+            Float(i) => format_float(i).fmt(f),
             DocComment(ref c) => c.fmt(f),
         }
     }
@@ -369,12 +369,9 @@ impl AsRef<Token> for Token {
 
 /// Formatting helper to quote a string according to DM's rules.
 ///
-/// Assumes that escapes within the string have NOT been parsed
-pub struct Quote<'a>(pub &'a str);
-
-impl<'a> fmt::Display for Quote<'a> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let s = self.0;
+/// Assumes that escapes within the string have NOT been parsed.
+pub fn quote<'a>(s: &'a str) -> impl fmt::Display + 'a {
+    fmt::from_fn(move |f| {
         if s.contains("\"}") {
             write!(f, "@@{s}@")
         } else if s.contains('"') || s.contains('\n') {
@@ -382,15 +379,12 @@ impl<'a> fmt::Display for Quote<'a> {
         } else {
             write!(f, "\"{s}\"")
         }
-    }
+    })
 }
 
 /// Formatting helper to format a float according to DM's rules.
-pub struct FormatFloat(pub f32);
-
-impl fmt::Display for FormatFloat {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let n = self.0;
+pub fn format_float(n: f32) -> impl fmt::Display {
+    fmt::from_fn(move |f| {
         if n.is_nan() {
             if n.is_sign_negative() {
                 f.write_str("-1.#IND")
@@ -422,7 +416,7 @@ impl fmt::Display for FormatFloat {
                 write!(f, "{n2}")
             }
         }
-    }
+    })
 }
 
 /// A token with a location attached.
