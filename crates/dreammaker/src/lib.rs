@@ -77,33 +77,42 @@ where
     I: IntoIterator,
     I::Item: AsRef<lexer::Token>,
 {
+    use crate::lexer::Token;
+
     let mut indents = 0;
     let mut needs_newline = false;
     let mut prev: Option<I::Item> = None;
+    let mut inside_parens = 0;
     for token in input {
         match token.as_ref() {
             Token!['{'] => {
                 indents += 1;
                 needs_newline = true;
-                if show_ws {
+                if show_ws || inside_parens > 0 {
                     write!(w, "{{")?;
                 }
             },
             Token!['}'] => {
                 indents -= 1;
                 needs_newline = true;
-                if show_ws {
+                if show_ws || inside_parens > 0 {
                     write!(w, "}}")?;
                 }
             },
             Token![;] | Token!['\n'] => {
                 needs_newline = true;
-                if show_ws {
+                if show_ws || inside_parens > 0 {
                     write!(w, ";")?;
                 }
             },
-            lexer::Token::DocComment(_) => {},
+            Token::DocComment(_) => {},
             other => {
+                match other {
+                    Token!['('] => inside_parens += 1,
+                    Token![')'] => inside_parens -= 1,
+                    _ => {},
+                }
+
                 if needs_newline {
                     const SPACES: &str = "                                ";
                     let spaces = 2 * indents;

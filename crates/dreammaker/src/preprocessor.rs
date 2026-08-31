@@ -812,7 +812,7 @@ impl<'ctx> Preprocessor<'ctx> {
                     // include searches relevant paths for files
                     "include" if disabled => {},
                     "include" => {
-                        expect_token!(Token::String(path_str), include_loc);
+                        expect_token!(Token::String(path_str, _), include_loc);
                         expect_token!(Token!['\n']);
                         let path = PathBuf::from(path_str.replace('\\', "/"));
 
@@ -1046,7 +1046,7 @@ impl<'ctx> Preprocessor<'ctx> {
                     },
                     "warn" if disabled => {},
                     "warn" => {
-                        expect_token!(Token::String(text));
+                        expect_token!(Token::String(text, StringKind::WholeLine));
                         DMError::new(
                             self.last_input_loc,
                             format!("#{} {}", ident, text.trim_end_matches(['\r', '\n'])),
@@ -1056,7 +1056,7 @@ impl<'ctx> Preprocessor<'ctx> {
                     },
                     "error" if disabled => {},
                     "error" => {
-                        expect_token!(Token::String(text));
+                        expect_token!(Token::String(text, StringKind::WholeLine));
                         self.context.register_error(DMError::new(
                             self.last_input_loc,
                             format!("#{} {}", ident, text.trim_end_matches(['\r', '\n'])),
@@ -1133,7 +1133,10 @@ impl<'ctx> Preprocessor<'ctx> {
                     self.annotate_macro(ident, Location::BUILTINS, Some(Rc::new(doc_collection)));
                     for include in self.include_stack.stack.iter().rev() {
                         if let Include::File { ref path, .. } = *include {
-                            self.push_output(Token::String(path.display().to_string().into()));
+                            self.push_output(Token::String(
+                                path.display().to_string().into(),
+                                StringKind::Raw,
+                            ));
                             return Ok(());
                         }
                     }
@@ -1342,7 +1345,10 @@ impl<'ctx> Preprocessor<'ctx> {
                                                         _e.unwrap();
                                                     }
                                                 }
-                                                expansion.push_back(Token::String(string.into()));
+                                                expansion.push_back(Token::String(
+                                                    string.into(),
+                                                    StringKind::Raw,
+                                                ));
                                             },
                                             None => {
                                                 return Err(DMError::new(

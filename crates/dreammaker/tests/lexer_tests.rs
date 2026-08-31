@@ -1,9 +1,9 @@
 extern crate dreammaker as dm;
 
 use dm::FileId;
+use dm::Token;
 use dm::lexer::Token::*;
 use dm::lexer::*;
-use dm::Token;
 
 fn lex(f: &str) -> Vec<Token> {
     let context = Default::default();
@@ -51,7 +51,7 @@ fn nested_interpolation() {
         vec![
             InterpStringBegin("A".into()),
             Ident("B".into(), false),
-            String("C".into()),
+            Token::String("C".into(), StringKind::Normal),
             Ident("D".into(), false),
             InterpStringEnd("E".into()),
             Token!['\n'],
@@ -69,7 +69,7 @@ fn empty_block_comment() {
 
 #[test]
 fn raw_strings() {
-    let desired = Token::String("content".into());
+    let desired = Token::String("content".into(), StringKind::Raw);
     let stuff = lex(r#"
 @"content"
 @xcontentx
@@ -93,32 +93,53 @@ fn heredoc_with_quotes() {
     // 1-3 quotes in the middle of ordinary characters
     assert_eq!(
         lex(r#"{"foo"bar"}"#),
-        vec![Token::String(r#"foo"bar"#.into()), Token!['\n']]
+        vec![
+            Token::String(r#"foo"bar"#.into(), StringKind::Document),
+            Token!['\n']
+        ]
     );
     assert_eq!(
         lex(r#"{"foo""bar"}"#),
-        vec![Token::String(r#"foo""bar"#.into()), Token!['\n']]
+        vec![
+            Token::String(r#"foo""bar"#.into(), StringKind::Document),
+            Token!['\n']
+        ]
     );
     assert_eq!(
         lex(r#"{"foo"""bar"}"#),
-        vec![Token::String(r#"foo"""bar"#.into()), Token!['\n']]
+        vec![
+            Token::String(r#"foo"""bar"#.into(), StringKind::Document),
+            Token!['\n']
+        ]
     );
 
     // 0-5 quotes at the start/end
     assert_eq!(
         lex(r#"{""}"#),
-        vec![Token::String(r#""#.into()), Token!['\n']]
+        vec![
+            Token::String(r#""#.into(), StringKind::Document),
+            Token!['\n']
+        ]
     );
     assert_eq!(
         lex(r#"{"""}"#),
-        vec![Token::String(r#"""#.into()), Token!['\n']]
+        vec![
+            Token::String(r#"""#.into(), StringKind::Document),
+            Token!['\n']
+        ]
     );
     assert_eq!(
         lex(r#"{""""}"#),
-        vec![Token::String(r#""""#.into()), Token!['\n']]
+        vec![
+            Token::String(r#""""#.into(), StringKind::Document),
+            Token!['\n']
+        ]
     );
     assert_eq!(
         lex(r#"{"""""}"#),
-        vec![Token::String(r#"""""#.into()), Token!['\n']]
+        vec![
+            Token::String(r#"""""#.into(), StringKind::Document),
+            Token!['\n']
+        ]
     );
 }

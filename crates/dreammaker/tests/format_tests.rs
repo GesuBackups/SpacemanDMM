@@ -1,10 +1,10 @@
 extern crate dreammaker as dm;
 
-use dm::lexer::{format_float, quote};
+use dm::lexer::{StringKind, format_float, quote};
 
 #[test]
 fn strings() {
-    assert_eq!(quote("test").to_string(), r#""test""#);
+    assert_eq!(quote("test", StringKind::Normal).to_string(), r#""test""#);
     // TODO: more tests...
 }
 

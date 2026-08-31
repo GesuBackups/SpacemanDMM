@@ -1,8 +1,10 @@
 //! The lexer/tokenizer.
 use std::borrow::Cow;
-use std::fmt;
+use std::fmt::{self, Write};
 use std::io::Read;
 use std::str::FromStr;
+
+use foldhash::HashSet;
 
 use super::ast::Ident;
 use super::docs::*;
@@ -255,7 +257,7 @@ pub enum Token {
     /// A raw identifier or keyword. Indicates whether it is followed by whitespace.
     Ident(Ident, bool),
     /// A string literal with no interpolation.
-    String(Ident),
+    String(Ident, StringKind),
     /// The opening portion of an interpolated string. Followed by an expression.
     InterpStringBegin(Ident),
     /// An internal portion of an interpolated string. Preceded and followed by an expression.
@@ -270,6 +272,14 @@ pub enum Token {
     Float(f32),
     /// A documentation comment.
     DocComment(DocComment),
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum StringKind {
+    Normal,
+    Document,
+    Raw,
+    WholeLine,
 }
 
 /// Get a [Token] from Rust tokens, for use in consts and patterns.
@@ -356,7 +366,7 @@ const _: () = assert!(std::mem::size_of::<Token>() <= 24);
 impl Token {
     #[inline]
     pub fn empty_string() -> Self {
-        Token::String(Default::default())
+        Token::String(Default::default(), StringKind::Normal)
     }
 
     /// Check whether this token should be separated from the previous one when
@@ -389,6 +399,9 @@ impl Token {
             | (&Token::InterpStringBegin(_), &Token::Ident(..))
             | (&Token::InterpStringPart(_), &Token::Ident(..)) => false,
             (&Token::Ident(..), _) | (_, &Token::Ident(..)) => true,
+            // `//` and `/*` start comments, so they must be split out.
+            // Example: `10 / /datum::variable`
+            (&Token![/], &Token![/]) | (&Token![/], &Token![*]) => true,
             _ => false,
         }
     }
@@ -425,10 +438,10 @@ impl fmt::Display for Token {
             Eof => f.write_str("__EOF__"),
             Punct(p) => p.fmt(f),
             Ident(ref i, _) => f.write_str(i),
-            String(ref i) => quote(i).fmt(f),
-            InterpStringBegin(ref i) => write!(f, "\"{i}["),
-            InterpStringPart(ref i) => write!(f, "]{i}["),
-            InterpStringEnd(ref i) => write!(f, "]{i}\""),
+            String(ref i, kind) => quote(i, kind).fmt(f),
+            InterpStringBegin(ref i) => write!(f, "\"{}[", escape_ish(i)),
+            InterpStringPart(ref i) => write!(f, "]{}[", escape_ish(i)),
+            InterpStringEnd(ref i) => write!(f, "]{}\"", escape_ish(i)),
             Resource(ref i) => write!(f, "'{i}'"),
             Int(i) => format_float(i as f32).fmt(f),
             Float(i) => format_float(i).fmt(f),
@@ -446,15 +459,43 @@ impl AsRef<Token> for Token {
 /// Formatting helper to quote a string according to DM's rules.
 ///
 /// Assumes that escapes within the string have NOT been parsed.
-pub fn quote<'a>(s: &'a str) -> impl fmt::Display + 'a {
+pub fn quote<'a>(s: &'a str, kind: StringKind) -> impl fmt::Display + 'a {
     fmt::from_fn(move |f| {
-        if s.contains("\"}") {
-            write!(f, "@@{s}@")
-        } else if s.contains('"') || s.contains('\n') {
-            write!(f, "{{\"{s}\"}}")
-        } else {
-            write!(f, "\"{s}\"")
+        match kind {
+            StringKind::Normal => write!(f, "\"{s}\""),
+            StringKind::Document => write!(f, "{{\"{s}\"}}"),
+            StringKind::Raw => {
+                // Pick first character from this list that isn't in the string.
+                const SINGLE_CHARS: &str = "\"'`^@#!$%&=+|/";
+                let mut unused_chars = SINGLE_CHARS.chars().collect::<HashSet<_>>();
+                for char in s.chars() {
+                    unused_chars.remove(&char);
+                }
+                for char in SINGLE_CHARS.chars() {
+                    if unused_chars.contains(&char) {
+                        return write!(f, "@{char}{s}{char}");
+                    }
+                }
+                // TODO: could quote into @(xyz)...(xyz) or add more characters above
+                panic!("raw string unquotable")
+            },
+            StringKind::WholeLine => f.write_str(s),
         }
+    })
+}
+
+/// Escape not-already-escaped `"` and LF characters, but not `\` or other sequences.
+fn escape_ish<'a>(s: &'a str) -> impl fmt::Display + 'a {
+    fmt::from_fn(move |f| {
+        let mut prev = None;
+        for ch in s.chars() {
+            if matches!(ch, '"' | '\n') && !matches!(prev, Some('\\')) {
+                f.write_char('\\')?;
+            }
+            f.write_char(ch)?;
+            prev = Some(ch);
+        }
+        Ok(())
     })
 }
 
@@ -551,6 +592,7 @@ pub fn from_utf8_or_latin1_borrowed(bytes: &[u8]) -> Cow<'_, str> {
 // Used to track nested string interpolations and know when they end.
 #[derive(Debug)]
 struct Interpolation {
+    kind: StringKind,
     end: &'static [u8],
     bracket_depth: usize,
 }
@@ -1084,7 +1126,7 @@ impl<'ctx> Lexer<'ctx> {
         from_utf8_or_latin1(buf)
     }
 
-    fn read_string(&mut self, end: &'static [u8], interp_closed: bool) -> Token {
+    fn read_string(&mut self, kind: StringKind, end: &'static [u8], interp_closed: bool) -> Token {
         let start_loc = self.location();
         let mut buf = Vec::new();
         let mut backslash = false;
@@ -1134,6 +1176,7 @@ impl<'ctx> Lexer<'ctx> {
                 // `backslash` is false hereafter
                 b'[' => {
                     self.interp_stack.push(Interpolation {
+                        kind,
                         end,
                         bracket_depth: 1,
                     });
@@ -1150,7 +1193,7 @@ impl<'ctx> Lexer<'ctx> {
             (true, true) => Token::InterpStringPart(string),
             (true, false) => Token::InterpStringBegin(string),
             (false, true) => Token::InterpStringEnd(string),
-            (false, false) => Token::String(string),
+            (false, false) => Token::String(string, kind),
         }
     }
 
@@ -1171,7 +1214,7 @@ impl<'ctx> Lexer<'ctx> {
                 break;
             }
         }
-        Token::String(Ident::from(from_utf8_or_latin1(buf)))
+        Token::String(Ident::from(from_utf8_or_latin1(buf)), StringKind::Raw)
     }
 
     fn read_raw_string(&mut self) -> Token {
@@ -1312,7 +1355,11 @@ impl<'ctx> Iterator for Lexer<'ctx> {
             if self.directive == Directive::Stringy {
                 self.directive = Directive::None;
                 self.put_back(Some(first));
-                return Some(locate(self.read_string(b"\n", false)));
+                return Some(locate(self.read_string(
+                    StringKind::WholeLine,
+                    b"\n",
+                    false,
+                )));
             }
 
             let mut punct = self.read_punct(first);
@@ -1337,8 +1384,14 @@ impl<'ctx> Iterator for Lexer<'ctx> {
                     continue;
                 },
                 Some(SingleQuote) => Some(locate(Resource(self.read_resource().into()))),
-                Some(DoubleQuote) => Some(locate(self.read_string(b"\"", false))),
-                Some(BlockString) => Some(locate(self.read_string(b"\"}", false))),
+                Some(DoubleQuote) => {
+                    Some(locate(self.read_string(StringKind::Normal, b"\"", false)))
+                },
+                Some(BlockString) => Some(locate(self.read_string(
+                    StringKind::Document,
+                    b"\"}",
+                    false,
+                ))),
                 Some(lbr @ LBracket | lbr @ SafeLBracket) => {
                     if let Some(interp) = self.interp_stack.last_mut() {
                         interp.bracket_depth += 1;
@@ -1349,7 +1402,7 @@ impl<'ctx> Iterator for Lexer<'ctx> {
                     if let Some(mut interp) = self.interp_stack.pop() {
                         interp.bracket_depth -= 1;
                         if interp.bracket_depth == 0 {
-                            return Some(locate(self.read_string(interp.end, true)));
+                            return Some(locate(self.read_string(interp.kind, interp.end, true)));
                         }
                         self.interp_stack.push(interp);
                     }

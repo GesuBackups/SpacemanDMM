@@ -412,7 +412,9 @@ impl fmt::Display for Constant {
                 write!(f, ")")
             },
             Constant::Prefab(ref val) => write!(f, "{val}"),
-            Constant::String(ref val) => crate::lexer::quote(val).fmt(f),
+            Constant::String(ref val) => {
+                crate::lexer::quote(val, crate::lexer::StringKind::Normal).fmt(f)
+            },
             Constant::Resource(ref val) => write!(f, "'{val}'"),
             Constant::Float(val) => crate::lexer::format_float(val).fmt(f),
         }
