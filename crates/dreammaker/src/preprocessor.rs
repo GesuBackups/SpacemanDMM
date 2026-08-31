@@ -73,7 +73,7 @@ impl Define {
 
             fmt.write_str("\n")?;
 
-            crate::pretty_print(fmt, self.subst.iter(), false)
+            crate::pretty_print_inner(fmt, self.subst.iter(), false)
         })
     }
 }

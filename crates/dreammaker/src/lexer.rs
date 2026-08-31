@@ -439,6 +439,12 @@ impl LocatedToken {
     }
 }
 
+impl AsRef<Token> for LocatedToken {
+    fn as_ref(&self) -> &Token {
+        &self.token
+    }
+}
+
 fn is_digit(ch: u8) -> bool {
     ch.is_ascii_digit()
 }
