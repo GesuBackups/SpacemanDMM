@@ -1,7 +1,7 @@
 //! The indentation processor.
 use std::collections::VecDeque;
 
-use crate::lexer::{LocatedToken, Punctuation, Token};
+use crate::lexer::{LocatedToken, Token};
 use crate::{Context, DMError, Location};
 
 /// Eliminates blank lines, parses and validates indentation, braces, and semicolons.
@@ -65,13 +65,13 @@ where
 
     #[inline]
     fn push_semicolon(&mut self) {
-        self.push_eol(Token::Punct(Punctuation::Semicolon));
+        self.push_eol(Token![;]);
     }
 
     fn real_next(&mut self, read: Token) {
         // handle whitespace
         match read {
-            Token::Punct(Punctuation::Newline) => {
+            Token!['\n'] => {
                 if self.parentheses == 0 {
                     self.current_spaces = Some(0);
                 }
@@ -81,7 +81,7 @@ where
                 }
                 return;
             },
-            Token::Punct(Punctuation::Tab) | Token::Punct(Punctuation::Space) => {
+            Token!['\t'] | Token![' '] => {
                 if let Some(spaces) = self.current_spaces.as_mut() {
                     *spaces += 1;
                 }
@@ -91,12 +91,8 @@ where
         }
 
         // handle pre-existing braces
-        match read {
-            Token::Punct(Punctuation::LBrace) => self.current_spaces = None,
-            Token::Punct(Punctuation::RBrace) => {
-                self.current_spaces = None;
-            },
-            _ => {},
+        if let Token!['{'] | Token!['}'] = read {
+            self.current_spaces = None
         }
 
         // handle indentation
@@ -139,7 +135,7 @@ where
 
             if indents + 1 == new_indents {
                 // single indent
-                self.push_eol(Token::Punct(Punctuation::LBrace));
+                self.push_eol(Token!['{']);
             } else if indents < new_indents {
                 // multiple indent is an error, register it but let it work
                 DMError::new(
@@ -151,15 +147,15 @@ where
                 )
                 .register(self.context);
                 for _ in indents..new_indents {
-                    self.push_eol(Token::Punct(Punctuation::LBrace));
+                    self.push_eol(Token!['{']);
                 }
             } else if indents == new_indents + 1 {
                 // single unindent
-                self.push_eol(Token::Punct(Punctuation::RBrace));
+                self.push_eol(Token!['}']);
             } else if indents > new_indents {
                 // multiple unindent
                 for _ in new_indents..indents {
-                    self.push_eol(Token::Punct(Punctuation::RBrace));
+                    self.push_eol(Token!['}']);
                 }
             } else {
                 // same indent as before
@@ -169,13 +165,13 @@ where
 
         // handle non-whitespace
         match read {
-            Token::Punct(Punctuation::LBrace) => {
+            Token!['{'] => {
                 self.current = match self.current {
                     None => Some((1, 1)),
                     Some((x, y)) => Some((x, y + 1)),
                 };
             },
-            Token::Punct(Punctuation::RBrace) => {
+            Token!['}'] => {
                 self.current = match self.current {
                     None => {
                         DMError::new(self.last_input_loc, "unmatched right brace")
@@ -186,10 +182,10 @@ where
                     Some((x, y)) => Some((x, y - 1)),
                 };
             },
-            Token::Punct(Punctuation::LParen) => {
+            Token!['('] => {
                 self.parentheses += 1;
             },
-            Token::Punct(Punctuation::RParen) => {
+            Token![')'] => {
                 self.parentheses = self.parentheses.saturating_sub(1);
             },
             _ => {},
@@ -218,10 +214,10 @@ where
             } else if self.eof_yielded {
                 return None;
             } else {
-                self.push(Token::Punct(Punctuation::Semicolon));
+                self.push(Token![;]);
                 if let Some((_, indents)) = self.current {
                     for _ in 0..indents {
-                        self.push(Token::Punct(Punctuation::RBrace));
+                        self.push(Token!['}']);
                     }
                 }
                 self.current = None;

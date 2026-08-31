@@ -620,7 +620,7 @@ impl<'ctx> Preprocessor<'ctx> {
         while let Some(tok) = self.inner_next() {
             self.last_input_loc = tok.location;
 
-            if let Token::Punct(Punctuation::Newline) = tok.token {
+            if let Token!['\n'] = tok.token {
                 break;
             }
 
@@ -764,7 +764,7 @@ impl<'ctx> Preprocessor<'ctx> {
         ];
         let disabled = !inside_condition && self.is_disabled();
         match read {
-            Token::Punct(Punctuation::Hash) => {
+            Token![#] => {
                 // preprocessor directive, next thing ought to be an ident
                 expect_token!(Token::Ident(ident, _));
                 match &ident[..] {
@@ -781,14 +781,14 @@ impl<'ctx> Preprocessor<'ctx> {
                     },
                     "ifdef" => {
                         expect_token!(Token::Ident(define_name, _));
-                        expect_token!(Token::Punct(Punctuation::Newline));
+                        expect_token!(Token!['\n']);
                         let enabled = self.is_defined(&define_name);
                         self.ifdef_stack
                             .push(Ifdef::new(self.last_input_loc, enabled));
                     },
                     "ifndef" => {
                         expect_token!(Token::Ident(define_name, _));
-                        expect_token!(Token::Punct(Punctuation::Newline));
+                        expect_token!(Token!['\n']);
                         let enabled = !self.is_defined(&define_name);
                         self.ifdef_stack
                             .push(Ifdef::new(self.last_input_loc, enabled));
@@ -813,7 +813,7 @@ impl<'ctx> Preprocessor<'ctx> {
                     "include" if disabled => {},
                     "include" => {
                         expect_token!(Token::String(path_str), include_loc);
-                        expect_token!(Token::Punct(Punctuation::Newline));
+                        expect_token!(Token!['\n']);
                         let path = PathBuf::from(path_str.replace('\\', "/"));
 
                         for candidate in [
@@ -877,7 +877,7 @@ impl<'ctx> Preprocessor<'ctx> {
                                         // A phantom newline keeps the include
                                         // directive being indented from making
                                         // the first line of the file indented.
-                                        self.push_output(Token::Punct(Punctuation::Newline));
+                                        self.push_output(Token!['\n']);
                                         self.include_stack.stack.push(include);
                                     },
                                     Err(e) => self.context.register_error(e),
@@ -898,7 +898,7 @@ impl<'ctx> Preprocessor<'ctx> {
                         // Skip to the end of the line, or else we'll catch
                         // stringify operators `#X` as unknown directives.
                         loop {
-                            if let Token::Punct(Punctuation::Newline) = next!() {
+                            if let Token!['\n'] = next!() {
                                 break;
                             }
                         }
@@ -921,14 +921,14 @@ impl<'ctx> Preprocessor<'ctx> {
                         let mut variadic = false;
                         'outer: {
                             match next!() {
-                                Token::Punct(Punctuation::LParen) if !ws => {
+                                Token!['('] if !ws => {
                                     loop {
                                         if variadic {
                                             return Err(self.error("only the last parameter of a macro may be variadic"));
                                         }
                                         match next!() {
                                             Token::Ident(name, _) => params.push(name),
-                                            Token::Punct(Punctuation::Ellipsis) => {
+                                            Token![...] => {
                                                 params.push(ident!("__VA_ARGS__")); // default
                                                 variadic = true;
                                             },
@@ -939,12 +939,12 @@ impl<'ctx> Preprocessor<'ctx> {
                                             },
                                         }
                                         match next!() {
-                                            Token::Punct(Punctuation::Comma) => {},
-                                            Token::Punct(Punctuation::RParen) => break,
-                                            Token::Punct(Punctuation::Ellipsis) => {
+                                            Token![,] => {},
+                                            Token![')'] => break,
+                                            Token![...] => {
                                                 variadic = true;
                                                 match next!() {
-                                                    Token::Punct(Punctuation::RParen) => break,
+                                                    Token![')'] => break,
                                                     _ => return Err(self.error("only the last parameter of a macro may be variadic"))
                                                 }
                                             },
@@ -956,7 +956,7 @@ impl<'ctx> Preprocessor<'ctx> {
                                         }
                                     }
                                 },
-                                Token::Punct(Punctuation::Newline) => break 'outer,
+                                Token!['\n'] => break 'outer,
                                 Token::DocComment(doc) => {
                                     if doc.target != DocTarget::EnclosingItem {
                                         let message = match doc.kind {
@@ -979,7 +979,7 @@ impl<'ctx> Preprocessor<'ctx> {
                             }
                             loop {
                                 match next!() {
-                                    Token::Punct(Punctuation::Newline) => break 'outer,
+                                    Token!['\n'] => break 'outer,
                                     Token::DocComment(doc) => {
                                         if doc.target != DocTarget::EnclosingItem {
                                             let message = match doc.kind {
@@ -1031,7 +1031,7 @@ impl<'ctx> Preprocessor<'ctx> {
                     "undef" if disabled => {},
                     "undef" => {
                         expect_token!(Token::Ident(define_name, _), define_name_loc);
-                        expect_token!(Token::Punct(Punctuation::Newline));
+                        expect_token!(Token!['\n']);
                         if let Some(previous) = self.defines.remove(&define_name) {
                             self.move_to_history(define_name, previous);
                         } else {
@@ -1094,7 +1094,7 @@ impl<'ctx> Preprocessor<'ctx> {
                     },
                 }
                 // yield a newline
-                self.push_output(Token::Punct(Punctuation::Newline));
+                self.push_output(Token!['\n']);
                 return Ok(());
             },
             // anything other than directives may be ifdef'd out
@@ -1153,8 +1153,7 @@ impl<'ctx> Preprocessor<'ctx> {
 
                 // special case for inside a defined() call
                 if let Some(LocatedToken {
-                    token: Token::Punct(Punctuation::LParen),
-                    ..
+                    token: Token!['('], ..
                 }) = self.output.back()
                     && let Some(idx) = self.output.len().checked_sub(2)
                     && let Some(LocatedToken {
@@ -1203,7 +1202,7 @@ impl<'ctx> Preprocessor<'ctx> {
                     )) => {
                         // if it's not followed by an LParen, it isn't really a function call
                         match next!() {
-                            Token::Punct(Punctuation::LParen) => {},
+                            Token!['('] => {},
                             other => {
                                 self.push_output(Token::Ident(ident.to_owned(), false));
                                 match other {
@@ -1225,11 +1224,11 @@ impl<'ctx> Preprocessor<'ctx> {
                         loop {
                             let token = next!();
                             match token {
-                                Token::Punct(Punctuation::LParen) => {
+                                Token!['('] => {
                                     parens += 1;
                                     this_arg.push(token);
                                 },
-                                Token::Punct(Punctuation::RParen) => {
+                                Token![')'] => {
                                     if parens == 0 {
                                         args.push(this_arg);
                                         break;
@@ -1237,7 +1236,7 @@ impl<'ctx> Preprocessor<'ctx> {
                                     parens -= 1;
                                     this_arg.push(token);
                                 },
-                                Token::Punct(Punctuation::Comma) if parens == 0 => {
+                                Token![,] if parens == 0 => {
                                     args.push(this_arg);
                                     this_arg = Vec::new();
                                 },
@@ -1248,9 +1247,7 @@ impl<'ctx> Preprocessor<'ctx> {
                         // check for correct number of arguments
                         if variadic {
                             if args.len() > params.len() {
-                                let new_arg = args
-                                    .split_off(params.len() - 1)
-                                    .join(&Token::Punct(Punctuation::Comma));
+                                let new_arg = args.split_off(params.len() - 1).join(&Token![,]);
                                 args.push(new_arg);
                             } else if args.len() + 1 == params.len() {
                                 args.push(Vec::new());
@@ -1273,7 +1270,7 @@ impl<'ctx> Preprocessor<'ctx> {
                                     }
                                 },
                                 // token paste = concat two idents together, if at all possible
-                                Token::Punct(Punctuation::TokenPaste) => {
+                                Token![# #] => {
                                     match (expansion.pop_back(), input.next()) {
                                         (
                                             Some(Token::Ident(first, ws1)),
@@ -1329,7 +1326,7 @@ impl<'ctx> Preprocessor<'ctx> {
                                     // read the next ident and concat it into the previous ident
                                 },
                                 // hash = must be followed by a param name, stringify the whole argument
-                                Token::Punct(Punctuation::Hash) => match input.next() {
+                                Token![#] => match input.next() {
                                     Some(Token::Ident(argname, _)) => {
                                         match params.iter().position(|x| *x == argname) {
                                             Some(i) => {
@@ -1412,7 +1409,7 @@ impl<'ctx> Iterator for Preprocessor<'ctx> {
 
             if let Some(tok) = self.inner_next() {
                 // linting for https://www.byond.com/forum/?post=2072419
-                if !tok.token.is_whitespace() && tok.token != Token::Punct(Punctuation::Hash) {
+                if !tok.token.is_whitespace() && tok.token != Token![#] {
                     if tok.location.file != self.last_printable_input_loc.file
                         || tok.location.line > self.last_printable_input_loc.line
                     {

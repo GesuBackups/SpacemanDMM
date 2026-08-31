@@ -1,9 +1,9 @@
 extern crate dreammaker as dm;
 
 use dm::FileId;
-use dm::lexer::Punctuation::*;
 use dm::lexer::Token::*;
 use dm::lexer::*;
+use dm::Token;
 
 fn lex(f: &str) -> Vec<Token> {
     let context = Default::default();
@@ -17,7 +17,7 @@ fn lex(f: &str) -> Vec<Token> {
 fn one_token(f: &str) -> Token {
     let mut v = lex(f);
     assert_eq!(v.len(), 2, "not one token: {f:?} -> {v:?}");
-    assert_eq!(v[1], Punct(Newline));
+    assert_eq!(v[1], Token!['\n']);
     v.remove(0)
 }
 
@@ -30,9 +30,9 @@ fn float(f: &str) -> f32 {
 
 #[test]
 fn number_literals() {
-    assert_eq!(lex("0.08"), vec![Float(0.08), Punct(Newline)]);
-    assert_eq!(lex("0xABCDE"), vec![Int(703710), Punct(Newline)]);
-    assert_eq!(lex("1e4"), vec![Float(10000.0), Punct(Newline)]);
+    assert_eq!(lex("0.08"), vec![Float(0.08), Token!['\n']]);
+    assert_eq!(lex("0xABCDE"), vec![Int(703710), Token!['\n']]);
+    assert_eq!(lex("1e4"), vec![Float(10000.0), Token!['\n']]);
 
     let f = float("1.#INF");
     assert!(f.is_infinite() && f > 0.);
@@ -54,7 +54,7 @@ fn nested_interpolation() {
             String("C".into()),
             Ident("D".into(), false),
             InterpStringEnd("E".into()),
-            Punct(Newline),
+            Token!['\n'],
         ]
     );
 }
@@ -64,7 +64,7 @@ fn empty_block_comment() {
     // This is legal. It should not do either of the following:
     // - Error with "still skipping comments at end of file"
     // - Yield a DocComment { text: "", .. }
-    assert_eq!(lex(r#"/**/"#), vec![Punct(Newline)])
+    assert_eq!(lex(r#"/**/"#), vec![Token!['\n']])
 }
 
 #[test]
@@ -81,7 +81,7 @@ fn raw_strings() {
 @{content{
 "#);
     for each in stuff.iter() {
-        if each == &Punct(Newline) {
+        if each == &Token!['\n'] {
             continue;
         }
         assert_eq!(each, &desired);
@@ -93,53 +93,32 @@ fn heredoc_with_quotes() {
     // 1-3 quotes in the middle of ordinary characters
     assert_eq!(
         lex(r#"{"foo"bar"}"#),
-        vec![
-            Token::String(r#"foo"bar"#.into()),
-            Token::Punct(Punctuation::Newline),
-        ]
+        vec![Token::String(r#"foo"bar"#.into()), Token!['\n']]
     );
     assert_eq!(
         lex(r#"{"foo""bar"}"#),
-        vec![
-            Token::String(r#"foo""bar"#.into()),
-            Token::Punct(Punctuation::Newline),
-        ]
+        vec![Token::String(r#"foo""bar"#.into()), Token!['\n']]
     );
     assert_eq!(
         lex(r#"{"foo"""bar"}"#),
-        vec![
-            Token::String(r#"foo"""bar"#.into()),
-            Token::Punct(Punctuation::Newline),
-        ]
+        vec![Token::String(r#"foo"""bar"#.into()), Token!['\n']]
     );
 
     // 0-5 quotes at the start/end
     assert_eq!(
         lex(r#"{""}"#),
-        vec![
-            Token::String(r#""#.into()),
-            Token::Punct(Punctuation::Newline),
-        ]
+        vec![Token::String(r#""#.into()), Token!['\n']]
     );
     assert_eq!(
         lex(r#"{"""}"#),
-        vec![
-            Token::String(r#"""#.into()),
-            Token::Punct(Punctuation::Newline),
-        ]
+        vec![Token::String(r#"""#.into()), Token!['\n']]
     );
     assert_eq!(
         lex(r#"{""""}"#),
-        vec![
-            Token::String(r#""""#.into()),
-            Token::Punct(Punctuation::Newline),
-        ]
+        vec![Token::String(r#""""#.into()), Token!['\n']]
     );
     assert_eq!(
         lex(r#"{"""""}"#),
-        vec![
-            Token::String(r#"""""#.into()),
-            Token::Punct(Punctuation::Newline),
-        ]
+        vec![Token::String(r#"""""#.into()), Token!['\n']]
     );
 }

@@ -281,9 +281,9 @@ enum TTKind {
 impl TTKind {
     fn from_token(token: &Token) -> Option<TTKind> {
         match *token {
-            Token::Punct(Punctuation::LParen) => Some(TTKind::Paren),
-            Token::Punct(Punctuation::LBrace) => Some(TTKind::Brace),
-            Token::Punct(Punctuation::LBracket) => Some(TTKind::Bracket),
+            Token!['('] => Some(TTKind::Paren),
+            Token!['{'] => Some(TTKind::Brace),
+            Token!['['] => Some(TTKind::Bracket),
             _ => None,
         }
     }
@@ -299,9 +299,9 @@ impl TTKind {
     fn is_end(self, token: &Token) -> bool {
         matches!(
             (self, token),
-            (TTKind::Paren, &Token::Punct(Punctuation::RParen))
-                | (TTKind::Brace, &Token::Punct(Punctuation::RBrace))
-                | (TTKind::Bracket, &Token::Punct(Punctuation::RBracket))
+            (TTKind::Paren, &Token![')'])
+                | (TTKind::Brace, &Token!['}'])
+                | (TTKind::Bracket, &Token![']'])
         )
     }
 }
@@ -593,9 +593,9 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
         }
     }
 
-    fn exact(&mut self, tok: Token) -> Status<()> {
-        self.expected(tok.single_quoted());
-        if self.peek() == &tok {
+    fn exact(&mut self, tok: impl AsRef<Token>) -> Status<()> {
+        self.expected(tok.as_ref().single_quoted());
+        if self.peek() == tok.as_ref() {
             self.take();
             SUCCESS
         } else {
@@ -678,7 +678,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
             take_match!(self {
                 Token::Eof => break,
                 tok if tok == &terminator => break,
-                Token::Punct(Punctuation::Semicolon) => continue,
+                Token![;] => continue,
             } else {
                 require!(self.tree_entry(current, proc_builder, var_type.clone()));
             });
@@ -745,11 +745,11 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
     fn possible_leading_slash(&mut self) -> Result<(bool, bool), DMError> {
         self.expected("`/`");
         take_match!(self {
-            Token::Punct(Punctuation::Slash) => Ok((true, false)),
-            Token::Punct(p @ Punctuation::Dot) |
-            Token::Punct(p @ Punctuation::CloseColon) |
-            Token::Punct(p @ Punctuation::Colon) => {
-                self.error(format!("path started by `{p}`, should be unprefixed"))
+            Token![/] => Ok((true, false)),
+            t @ Token![.] |
+            t @ Token![CloseColon] |
+            t @ Token![:] => {
+                self.error(format!("path started by {}, should be unprefixed", t.single_quoted()))
                     .with_severity(Severity::Warning)
                     .register(self.context);
                 Ok((false, true))
@@ -761,11 +761,11 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
     fn slash(&mut self) -> Status<()> {
         self.expected("`/`");
         take_match!(self {
-            Token::Punct(Punctuation::Slash) => SUCCESS,
-            Token::Punct(p @ Punctuation::Dot) |
-            Token::Punct(p @ Punctuation::CloseColon) |
-            Token::Punct(p @ Punctuation::Colon) => {
-                self.error(format!("path separated by `{p}`, should be `/`"))
+            Token![/] => SUCCESS,
+            t @ Token![.] |
+            t @ Token![CloseColon] |
+            t @ Token![:] => {
+                self.error(format!("path separated by {}, should be `/`", t.single_quoted()))
                     .with_severity(Severity::Warning)
                     .register(self.context);
                 SUCCESS
@@ -834,9 +834,6 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
         // tree_entry :: path '=' expression ';'
         // tree_entry :: path '(' argument_list ')' ';'
         // tree_entry :: path '(' argument_list ')' code_block
-
-        use super::lexer::Punctuation::*;
-        use super::lexer::Token::*;
 
         let entry_start = self.updated_location();
 
@@ -922,7 +919,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
         self.expected("`(`");
         self.expected("`{`");
         match self.peek() {
-            Punct(LBrace) => {
+            Token!['{'] => {
                 self.take();
                 // `thing{` - block
                 self.traverse_tree(
@@ -952,12 +949,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
                 }
                 self.tree.extend_docs(current, docs);
 
-                require!(self.tree_entries(
-                    current,
-                    proc_builder,
-                    var_type.clone(),
-                    Token::Punct(Punctuation::RBrace)
-                ));
+                require!(self.tree_entries(current, proc_builder, var_type.clone(), Token!['}']));
 
                 let node = self.tree.get_path(current).to_owned();
                 self.annotate(start, || {
@@ -970,7 +962,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
                 });
                 SUCCESS
             },
-            Punct(Assign) => {
+            Token![=] => {
                 self.take();
                 // `something=` - var
                 handle_relative_type_error!();
@@ -1017,7 +1009,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
 
                 SUCCESS
             },
-            Punct(LParen) => {
+            Token!['('] => {
                 // `something(` - proc
                 require!(self.proc_params_and_body(
                     current,
@@ -1108,79 +1100,76 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
     // Object tree - Procs
 
     fn try_read_operator_name(&mut self) -> Result<Option<Ident>, DMError> {
-        use super::lexer::Punctuation::*;
-        use super::lexer::Token::Punct;
-
-        if self.exact(Punct(Mod))?.is_some() {
+        if self.exact(Token![%])?.is_some() {
             Ok(Some(ident!("operator%")))
-        } else if self.exact(Punct(ModAssign))?.is_some() {
+        } else if self.exact(Token![%=])?.is_some() {
             Ok(Some(ident!("operator%=")))
-        } else if self.exact(Punct(FloatMod))?.is_some() {
+        } else if self.exact(Token![%%])?.is_some() {
             Ok(Some(ident!("operator%%")))
-        } else if self.exact(Punct(FloatModAssign))?.is_some() {
+        } else if self.exact(Token![%%=])?.is_some() {
             Ok(Some(ident!("operator%%=")))
-        } else if self.exact(Punct(BitAnd))?.is_some() {
+        } else if self.exact(Token![&])?.is_some() {
             Ok(Some(ident!("operator&")))
-        } else if self.exact(Punct(BitAndAssign))?.is_some() {
+        } else if self.exact(Token![&=])?.is_some() {
             Ok(Some(ident!("operator&=")))
-        } else if self.exact(Punct(Mul))?.is_some() {
+        } else if self.exact(Token![*])?.is_some() {
             Ok(Some(ident!("operator*")))
-        } else if self.exact(Punct(Pow))?.is_some() {
+        } else if self.exact(Token![**])?.is_some() {
             Ok(Some(ident!("operator**")))
-        } else if self.exact(Punct(MulAssign))?.is_some() {
+        } else if self.exact(Token![*=])?.is_some() {
             Ok(Some(ident!("operator*=")))
-        } else if self.exact(Punct(Slash))?.is_some() {
+        } else if self.exact(Token![/])?.is_some() {
             // Here for completeness, but REALLY handled in tree_path().
             Ok(Some(ident!("operator/")))
-        } else if self.exact(Punct(DivAssign))?.is_some() {
+        } else if self.exact(Token![/=])?.is_some() {
             Ok(Some(ident!("operator/=")))
-        } else if self.exact(Punct(Add))?.is_some() {
+        } else if self.exact(Token![+])?.is_some() {
             Ok(Some(ident!("operator+")))
-        } else if self.exact(Punct(PlusPlus))?.is_some() {
+        } else if self.exact(Token![++])?.is_some() {
             Ok(Some(ident!("operator++")))
-        } else if self.exact(Punct(AddAssign))?.is_some() {
+        } else if self.exact(Token![+=])?.is_some() {
             Ok(Some(ident!("operator+=")))
-        } else if self.exact(Punct(Sub))?.is_some() {
+        } else if self.exact(Token![-])?.is_some() {
             Ok(Some(ident!("operator-")))
-        } else if self.exact(Punct(MinusMinus))?.is_some() {
+        } else if self.exact(Token![--])?.is_some() {
             Ok(Some(ident!("operator--")))
-        } else if self.exact(Punct(SubAssign))?.is_some() {
+        } else if self.exact(Token![-=])?.is_some() {
             Ok(Some(ident!("operator-=")))
-        } else if self.exact(Punct(Less))?.is_some() {
+        } else if self.exact(Token![<])?.is_some() {
             Ok(Some(ident!("operator<")))
-        } else if self.exact(Punct(LShift))?.is_some() {
+        } else if self.exact(Token![<<])?.is_some() {
             Ok(Some(ident!("operator<<")))
-        } else if self.exact(Punct(LShiftAssign))?.is_some() {
+        } else if self.exact(Token![<<=])?.is_some() {
             Ok(Some(ident!("operator<<=")))
-        } else if self.exact(Punct(LessEq))?.is_some() {
+        } else if self.exact(Token![<=])?.is_some() {
             Ok(Some(ident!("operator<=")))
-        } else if self.exact(Punct(LessOrGreater))?.is_some() {
+        } else if self.exact(Token![<=>])?.is_some() {
             Ok(Some(ident!("operator<=>")))
-        } else if self.exact(Punct(Greater))?.is_some() {
+        } else if self.exact(Token![>])?.is_some() {
             Ok(Some(ident!("operator>")))
-        } else if self.exact(Punct(GreaterEq))?.is_some() {
+        } else if self.exact(Token![>=])?.is_some() {
             Ok(Some(ident!("operator>=")))
-        } else if self.exact(Punct(RShift))?.is_some() {
+        } else if self.exact(Token![>>])?.is_some() {
             Ok(Some(ident!("operator>>")))
-        } else if self.exact(Punct(RShiftAssign))?.is_some() {
+        } else if self.exact(Token![>>=])?.is_some() {
             Ok(Some(ident!("operator>>=")))
-        } else if self.exact(Punct(BitXor))?.is_some() {
+        } else if self.exact(Token![^])?.is_some() {
             Ok(Some(ident!("operator^")))
-        } else if self.exact(Punct(BitXorAssign))?.is_some() {
+        } else if self.exact(Token![^=])?.is_some() {
             Ok(Some(ident!("operator^=")))
-        } else if self.exact(Punct(BitOr))?.is_some() {
+        } else if self.exact(Token![|])?.is_some() {
             Ok(Some(ident!("operator|")))
-        } else if self.exact(Punct(BitOrAssign))?.is_some() {
+        } else if self.exact(Token![|=])?.is_some() {
             Ok(Some(ident!("operator|=")))
-        } else if self.exact(Punct(BitNot))?.is_some() {
+        } else if self.exact(Token![~])?.is_some() {
             Ok(Some(ident!("operator~")))
-        } else if self.exact(Punct(Equiv))?.is_some() {
+        } else if self.exact(Token![~=])?.is_some() {
             Ok(Some(ident!("operator~=")))
-        } else if self.exact(Punct(AssignInto))?.is_some() {
+        } else if self.exact(Token![:=])?.is_some() {
             Ok(Some(ident!("operator:=")))
-        } else if self.exact(Punct(LBracket))?.is_some() {
-            require!(self.exact(Punct(RBracket)));
-            if self.exact(Punct(Assign))?.is_some() {
+        } else if self.exact(Token!['['])?.is_some() {
+            require!(self.exact(Token![']']));
+            if self.exact(Token![=])?.is_some() {
                 Ok(Some(ident!("operator[]=")))
             } else {
                 Ok(Some(ident!("operator[]")))
@@ -1201,13 +1190,11 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
         absolute: bool,
         mut docs: DocCollection,
     ) -> Status<()> {
-        use super::lexer::Punctuation::*;
-        use super::lexer::Token::*;
-
-        leading!(self.exact(Punct(LParen)));
+        leading!(self.exact(Token!['(']));
 
         let location = self.location;
-        let parameters = require!(self.separated(Comma, RParen, None, Parser::proc_parameter));
+        let parameters =
+            require!(self.separated(Token![,], Token![')'], None, Parser::proc_parameter));
         let return_type = self.return_type(proc_builder)?.unwrap_or_default();
 
         // split off a subparser so we can keep parsing the objtree
@@ -1222,10 +1209,10 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
 
         if let Some(()) = self.statement_terminator()? {
             // proc has no body and just ends with `;`
-            body_tt.push(LocatedToken::new(self.location, Punct(Semicolon)));
-        } else if let Some(()) = self.exact(Punct(LBrace))? {
+            body_tt.push(LocatedToken::new(self.location, Token![;]));
+        } else if let Some(()) = self.exact(Token!['{'])? {
             // proc has a body starting with `{`
-            body_tt.push(LocatedToken::new(self.location, Punct(LBrace)));
+            body_tt.push(LocatedToken::new(self.location, Token!['{']));
 
             // enclosing doc comments `//!` can appear after the `{`
             while let Some(comment) = self.enclosing_doc_comment()? {
@@ -1233,16 +1220,16 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
             }
 
             // read the rest of the line
-            while self.exact(Punct(RBrace))?.is_none() {
+            while self.exact(Token!['}'])?.is_none() {
                 require!(self.read_any_tt(&mut body_tt));
             }
-            body_tt.push(LocatedToken::new(self.location, Punct(RBrace)));
+            body_tt.push(LocatedToken::new(self.location, Token!['}']));
         } else {
             // proc has a same-line body, read until statement terminator
             while self.statement_terminator()?.is_none() {
                 require!(self.read_any_tt(&mut body_tt));
             }
-            body_tt.push(LocatedToken::new(self.location, Punct(Semicolon)));
+            body_tt.push(LocatedToken::new(self.location, Token![;]));
         }
 
         let code = if self.procs {
@@ -1315,10 +1302,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
     }
 
     fn proc_parameter(&mut self) -> Status<Parameter> {
-        use super::lexer::Punctuation::*;
-        use super::lexer::Token::*;
-
-        if let Some(()) = self.exact(Punct(Ellipsis))? {
+        if let Some(()) = self.exact(Token![...])? {
             return success(Parameter {
                 var_type: Default::default(),
                 name: ident!("..."),
@@ -1356,7 +1340,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
         // In parameters, the expression within the annotation is ignored.
         var_type.suffix(&require!(self.var_suffix()));
         // = <expr>
-        let default = if let Some(()) = self.exact(Punct(Assign))? {
+        let default = if let Some(()) = self.exact(Token![=])? {
             Some(require!(self.expression()))
         } else {
             None
@@ -1365,7 +1349,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
         var_type.input_type = input_type;
 
         // Allow a trailing `;` since BYOND accepts it, but this is dumb
-        if let Some(()) = self.exact(Punct(Semicolon))? {
+        if let Some(()) = self.exact(Token![;])? {
             DMError::new(self.updated_location(), "extraneous `;` in proc parameter")
                 .with_severity(Severity::Warning)
                 .with_errortype("semicolon_in_proc_parameter")
@@ -1386,13 +1370,10 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
 
     /// Parse list size declarations.
     fn var_suffix(&mut self) -> Status<VarSuffix> {
-        use super::lexer::Punctuation::*;
-        use super::lexer::Token::Punct;
-
         let mut list = Vec::new();
-        while let Some(()) = self.exact(Punct(LBracket))? {
+        while let Some(()) = self.exact(Token!['['])? {
             list.push(self.expression()?);
-            require!(self.exact(Punct(RBracket)));
+            require!(self.exact(Token![']']));
         }
         success(VarSuffix { list })
     }
@@ -1407,7 +1388,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
         };
         // `in view(7)` or `in list("a", "b")` or ...
         let in_list;
-        if let Some(()) = self.exact(Token::Punct(Punctuation::In))? {
+        if let Some(()) = self.exact(Token![in])? {
             in_list = Some(require!(self.expression()));
             // in case it is out of order
             if let Some(()) = self.exact_ident(ident!("as"))? {
@@ -1440,9 +1421,9 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
         }
 
         // Option two: a typepath.
-        require!(self.exact(Token::Punct(Punctuation::Slash)));
+        require!(self.exact(Token![/]));
         let mut path_vec = vec![require!(self.ident())];
-        while let Some(()) = self.exact(Token::Punct(Punctuation::Slash))? {
+        while let Some(()) = self.exact(Token![/])? {
             path_vec.push(require!(self.ident()));
         }
 
@@ -1452,8 +1433,8 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
     /// Parse a verb input type. Used by proc params and the input() form.
     fn input_type(&mut self) -> Status<InputType> {
         // Not supporting `as((mob|obj)|turf)` constructs right now.
-        if self.exact(Token::Punct(Punctuation::LParen))?.is_some() {
-            require!(self.exact(Token::Punct(Punctuation::RParen)));
+        if self.exact(Token!['('])?.is_some() {
+            require!(self.exact(Token![')']));
             return success(InputType::empty());
         }
 
@@ -1466,7 +1447,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
                 InputType::empty()
             },
         };
-        while let Some(()) = self.exact(Token::Punct(Punctuation::BitOr))? {
+        while let Some(()) = self.exact(Token![|])? {
             let ident = require!(self.ident());
             match InputType::from_str(&ident) {
                 Ok(what) => as_what |= what,
@@ -1482,12 +1463,12 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
     /// Parse a block
     fn block(&mut self) -> Status<Block> {
         let mut vars = Vec::new();
-        let result = if let Some(()) = self.exact(Token::Punct(Punctuation::LBrace))? {
+        let result = if let Some(()) = self.exact(Token!['{'])? {
             let mut statements = Vec::new();
             loop {
-                if let Some(()) = self.exact(Token::Punct(Punctuation::RBrace))? {
+                if let Some(()) = self.exact(Token!['}'])? {
                     break;
-                } else if let Some(()) = self.exact(Token::Punct(Punctuation::Semicolon))? {
+                } else if let Some(()) = self.exact(Token![;])? {
                     continue;
                 } else {
                     statements.push(require!(self.statement(&mut vars)));
@@ -1518,9 +1499,9 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
         // BLOCK STATEMENTS
         if let Some(()) = self.exact_ident(ident!("if"))? {
             // statement :: 'if' '(' expression ')' block ('else' 'if' '(' expression ')' block)* ('else' block)?
-            require!(self.exact(Token::Punct(Punctuation::LParen)));
+            require!(self.exact(Token!['(']));
             let expr = Spanned::new(self.location(), require!(self.expression()));
-            require!(self.exact(Token::Punct(Punctuation::RParen)));
+            require!(self.exact(Token![')']));
             let block = require!(self.block());
             let mut arms = vec![(expr, block)];
 
@@ -1528,9 +1509,9 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
             self.skip_phantom_semicolons()?;
             while let Some(()) = self.exact_ident(ident!("else"))? {
                 if let Some(()) = self.exact_ident(ident!("if"))? {
-                    require!(self.exact(Token::Punct(Punctuation::LParen)));
+                    require!(self.exact(Token!['(']));
                     let expr = Spanned::new(self.location(), require!(self.expression()));
-                    require!(self.exact(Token::Punct(Punctuation::RParen)));
+                    require!(self.exact(Token![')']));
                     let block = require!(self.block());
                     arms.push((expr, block));
                 } else {
@@ -1543,9 +1524,9 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
             spanned(Statement::If { arms, else_arm })
         } else if let Some(()) = self.exact_ident(ident!("while"))? {
             // statement :: 'while' '(' expression ')' block
-            require!(self.exact(Token::Punct(Punctuation::LParen)));
+            require!(self.exact(Token!['(']));
             let condition = Spanned::new(self.location, require!(self.expression()));
-            require!(self.exact(Token::Punct(Punctuation::RParen)));
+            require!(self.exact(Token![')']));
             let block = require!(self.block());
             spanned(Statement::While {
                 condition: Box::new(condition),
@@ -1556,9 +1537,9 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
             let block = require!(self.block());
             self.skip_phantom_semicolons()?;
             require!(self.exact_ident(ident!("while")));
-            require!(self.exact(Token::Punct(Punctuation::LParen)));
+            require!(self.exact(Token!['(']));
             let condition = Spanned::new(self.location(), require!(self.expression()));
-            require!(self.exact(Token::Punct(Punctuation::RParen)));
+            require!(self.exact(Token![')']));
             require!(self.statement_terminator());
             spanned(Statement::DoWhile {
                 block,
@@ -1570,7 +1551,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
             // for (Init, Test, Inc) Statement
             // for (Var in Low to High)
             // for (Var = Low to High)
-            require!(self.exact(Token::Punct(Punctuation::LParen)));
+            require!(self.exact(Token!['(']));
             let init = self.simple_statement(true, vars)?;
 
             // We do this here otherwise it's consumed after the comma (for key-value loops with typed keys)
@@ -1588,7 +1569,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
                     Some(()) => self.simple_statement(false, vars)?,
                     None => None,
                 };
-                require!(self.exact(Token::Punct(Punctuation::RParen)));
+                require!(self.exact(Token![')']));
                 spanned(Statement::ForLoop {
                     init: init.map(Box::new),
                     test: test.map(Box::new),
@@ -1605,7 +1586,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
                 };
                 // Increment exists
                 if inc.is_some() {
-                    require!(self.exact(Token::Punct(Punctuation::RParen)));
+                    require!(self.exact(Token![')']));
                     spanned(Statement::ForLoop {
                         init: init.map(Box::new),
                         test: test.map(Box::new),
@@ -1645,7 +1626,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
                                     )),
                                 };
                             // TODO : check if `x` is an ident/a "list()" or "alist()" statement ?
-                            require!(self.exact(Token::Punct(Punctuation::RParen)));
+                            require!(self.exact(Token![')']));
                             // Returns a for(k,v)
                             spanned(Statement::ForKeyValue(Box::new(ForKeyValueStatement {
                                 var_type,
@@ -1659,7 +1640,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
                         // We will just assume everything else for(k, [...]) is a two-pronged for loop
                         // for (init, test) {...}
                         _ => {
-                            require!(self.exact(Token::Punct(Punctuation::RParen)));
+                            require!(self.exact(Token![')']));
                             spanned(Statement::ForLoop {
                                 init: init.map(Box::new),
                                 test: test.map(Box::new),
@@ -1720,7 +1701,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
                             },
                             rhs => {
                                 // I love code duplication, don't you?
-                                require!(self.exact(Token::Punct(Punctuation::RParen)));
+                                require!(self.exact(Token![')']));
                                 return spanned(Statement::ForList(Box::new(ForListStatement {
                                     var_type: None,
                                     name,
@@ -1745,7 +1726,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
                     None
                 };
 
-                let in_list = if let Some(()) = self.exact(Token::Punct(Punctuation::In))? {
+                let in_list = if let Some(()) = self.exact(Token![in])? {
                     let value = require!(self.expression());
                     if let Some(()) = self.exact_ident(ident!("to"))? {
                         let rhs = require!(self.expression());
@@ -1756,7 +1737,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
                     None
                 };
 
-                require!(self.exact(Token::Punct(Punctuation::RParen)));
+                require!(self.exact(Token![')']));
                 spanned(Statement::ForList(Box::new(ForListStatement {
                     var_type,
                     name,
@@ -1765,16 +1746,16 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
                     block: require!(self.block()),
                 })))
             } else {
-                require!(self.exact(Token::Punct(Punctuation::RParen)));
+                require!(self.exact(Token![')']));
                 spanned(Statement::ForInfinite {
                     block: require!(self.block()),
                 })
             }
         } else if let Some(()) = self.exact_ident(ident!("spawn"))? {
             let expr;
-            if let Some(()) = self.exact(Token::Punct(Punctuation::LParen))? {
+            if let Some(()) = self.exact(Token!['('])? {
                 expr = self.expression()?;
-                require!(self.exact(Token::Punct(Punctuation::RParen)));
+                require!(self.exact(Token![')']));
             } else {
                 expr = None;
             }
@@ -1783,20 +1764,15 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
                 block: require!(self.block()),
             })
         } else if let Some(()) = self.exact_ident(ident!("switch"))? {
-            require!(self.exact(Token::Punct(Punctuation::LParen)));
+            require!(self.exact(Token!['(']));
             let expr = require!(self.expression());
-            require!(self.exact(Token::Punct(Punctuation::RParen)));
-            require!(self.exact(Token::Punct(Punctuation::LBrace)));
+            require!(self.exact(Token![')']));
+            require!(self.exact(Token!['{']));
             let mut cases = Vec::new();
             let default = loop {
                 if let Some(()) = self.exact_ident(ident!("if"))? {
-                    require!(self.exact(Token::Punct(Punctuation::LParen)));
-                    let what = require!(self.separated(
-                        Punctuation::Comma,
-                        Punctuation::RParen,
-                        None,
-                        Parser::case
-                    ));
+                    require!(self.exact(Token!['(']));
+                    let what = require!(self.separated(Token![,], Token![')'], None, Parser::case));
                     if what.is_empty() {
                         self.context
                             .register_error(self.error("switch case cannot be empty"));
@@ -1805,14 +1781,14 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
                     cases.push((Spanned::new(self.location(), what), block));
                 } else if let Some(()) = self.exact_ident(ident!("else"))? {
                     break Some(require!(self.block()));
-                } else if let Some(()) = self.exact(Token::Punct(Punctuation::Semicolon))? {
+                } else if let Some(()) = self.exact(Token![;])? {
                     // Tolerate stray semicolons here because inert doc
                     // comments might synthesize them.
                 } else {
                     break None;
                 }
             };
-            require!(self.exact(Token::Punct(Punctuation::RBrace)));
+            require!(self.exact(Token!['}']));
             spanned(Statement::Switch {
                 input: Box::new(expr),
                 cases: cases.into_boxed_slice(),
@@ -1822,14 +1798,12 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
             let try_block = require!(self.block());
             self.skip_phantom_semicolons()?;
             require!(self.exact_ident(ident!("catch")));
-            let catch_params = if let Some(()) = self.exact(Token::Punct(Punctuation::LParen))? {
-                require!(
-                    self.separated(Punctuation::Comma, Punctuation::RParen, None, |this| {
-                        // TODO: improve upon this cheap approximation
-                        let (_, path) = leading!(this.tree_path(true));
-                        success(AbsolutePath::from_iter(path))
-                    })
-                )
+            let catch_params = if let Some(()) = self.exact(Token!['('])? {
+                require!(self.separated(Token![,], Token![')'], None, |this| {
+                    // TODO: improve upon this cheap approximation
+                    let (_, path) = leading!(this.tree_path(true));
+                    success(AbsolutePath::from_iter(path))
+                }))
             } else {
                 Vec::new()
             };
@@ -1842,9 +1816,9 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
         // SINGLE-LINE STATEMENTS
         } else if let Some(()) = self.exact_ident(ident!("set"))? {
             let name = require!(self.ident());
-            let mode = if let Some(()) = self.exact(Token::Punct(Punctuation::Assign))? {
+            let mode = if let Some(()) = self.exact(Token![=])? {
                 SettingMode::Assign
-            } else if let Some(()) = self.exact(Token::Punct(Punctuation::In))? {
+            } else if let Some(()) = self.exact(Token![in])? {
                 SettingMode::In
             } else {
                 return Err(self.parse_error());
@@ -1870,7 +1844,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
             // check for a label `ident:`
             if let Statement::Expr(ref expr) = result
                 && let Some(Term::Ident(name)) = expr.as_term()
-                && let Some(()) = self.exact(Token::Punct(Punctuation::Colon))?
+                && let Some(()) = self.exact(Token![:])?
             {
                 // it's a label! check for a block
                 return spanned(Statement::Label {
@@ -1887,13 +1861,13 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
     fn statement_terminator(&mut self) -> Status<()> {
         self.expected("`;`");
         match self.peek() {
-            Token::Punct(Punctuation::Semicolon) => {
+            Token![;] => {
                 self.take();
                 SUCCESS
             },
             // Handle if(1){a=1;b=2} without a trailing semicolon
-            Token::Punct(Punctuation::RBrace) => SUCCESS,
-            Token::Punct(Punctuation::LBrace) => {
+            Token!['}'] => SUCCESS,
+            Token!['{'] => {
                 self.possible_indentation_error = true;
                 try_another()
             },
@@ -1910,7 +1884,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
         //   thing1 = /obj{name="prefab"}  ;
         //   thing2 = "foo"  ;
         // So it's easiest to just ignore them when it makes sense.
-        while let Some(()) = self.exact(Token::Punct(Punctuation::Semicolon))? {}
+        while let Some(()) = self.exact(Token![;])? {}
         Ok(())
     }
 
@@ -1969,7 +1943,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
                     vars.push((self.location, var_type.clone().build(), name.clone()));
                 }
 
-                let value = if let Some(()) = self.exact(Token::Punct(Punctuation::Assign))? {
+                let value = if let Some(()) = self.exact(Token![=])? {
                     Some(require!(self.expression()))
                 } else {
                     var_suffix.into_initializer()
@@ -1991,7 +1965,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
                     name,
                     value,
                 });
-                if in_for || self.exact(Token::Punct(Punctuation::Comma))?.is_none() {
+                if in_for || self.exact(Token![,])?.is_none() {
                     break;
                 }
             }
@@ -2008,9 +1982,9 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
         } else if let Some(()) = self.exact_ident(ident!("CRASH"))? {
             // statement :: 'CRASH' '(' ')'
             // statement :: 'CRASH' '(' expression ')'
-            require!(self.exact(Token::Punct(Punctuation::LParen)));
+            require!(self.exact(Token!['(']));
             let expression = self.expression()?;
-            require!(self.exact(Token::Punct(Punctuation::RParen)));
+            require!(self.exact(Token![')']));
             success(Statement::Crash(expression))
         } else if let Some(()) = self.exact_ident(ident!("throw"))? {
             // statement :: 'throw' expression ';'
@@ -2045,7 +2019,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
             None
         };
         // )
-        require!(self.exact(Token::Punct(Punctuation::RParen)));
+        require!(self.exact(Token![')']));
         // {...}
         success(Statement::ForRange(Box::new(ForRangeStatement {
             var_type,
@@ -2058,7 +2032,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
     }
 
     fn comma(&mut self) -> Status<()> {
-        if let Some(()) = self.exact(Token::Punct(Punctuation::Comma))? {
+        if let Some(()) = self.exact(Token![,])? {
             SUCCESS
         } else {
             Ok(None)
@@ -2066,7 +2040,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
     }
 
     fn semicolon(&mut self) -> Status<()> {
-        if let Some(()) = self.exact(Token::Punct(Punctuation::Semicolon))? {
+        if let Some(()) = self.exact(Token![;])? {
             SUCCESS
         } else {
             Ok(None)
@@ -2087,9 +2061,9 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
 
     fn path_separator(&mut self) -> Status<PathOp> {
         take_match!(self {
-            Token::Punct(Punctuation::Slash) => success(PathOp::Slash),
-            Token::Punct(Punctuation::Dot) => success(PathOp::Dot),
-            Token::Punct(Punctuation::CloseColon) => success(PathOp::Colon),
+            Token![/] => success(PathOp::Slash),
+            Token![.] => success(PathOp::Dot),
+            Token![CloseColon] => success(PathOp::Colon),
         } else try_another())
     }
 
@@ -2142,19 +2116,14 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
 
         // parse vars if we find them
         let mut vars = Vec::new();
-        if let Some(()) = self.exact(Token::Punct(Punctuation::LBrace))? {
-            self.separated(
-                Punctuation::Semicolon,
-                Punctuation::RBrace,
-                Some(()),
-                |this| {
-                    let key = require!(this.ident());
-                    require!(this.exact(Token::Punct(Punctuation::Assign)));
-                    let value = require!(this.expression());
-                    vars.push((key, value));
-                    SUCCESS
-                },
-            )?;
+        if let Some(()) = self.exact(Token!['{'])? {
+            self.separated(Token![;], Token!['}'], Some(()), |this| {
+                let key = require!(this.ident());
+                require!(this.exact(Token![=]));
+                let value = require!(this.expression());
+                vars.push((key, value));
+                SUCCESS
+            })?;
         }
 
         success(Box::new(Prefab {
@@ -2267,8 +2236,8 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
                 // Ensure that the next thing we see is a ':' by now.
                 self.expected("`:`");
                 take_match!(self {
-                    Token::Punct(Punctuation::Colon) |
-                    Token::Punct(Punctuation::CloseColon) => {},
+                    Token![:] |
+                    Token![CloseColon] => {},
                 } else return Err(self.parse_error()));
                 // Read the else branch.
                 let else_ = match self.expression_ex(Some(Strength::Conditional), true)? {
@@ -2318,13 +2287,13 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
         loop {
             self.expected("operator");
             take_match!(self {
-                Token::Punct(Punctuation::Sub) => unary_ops.push(Spanned::new(self.location, Follow::Unary(UnaryOp::Neg))),
-                Token::Punct(Punctuation::Not) => unary_ops.push(Spanned::new(self.location, Follow::Unary(UnaryOp::Not))),
-                Token::Punct(Punctuation::BitNot) => unary_ops.push(Spanned::new(self.location, Follow::Unary(UnaryOp::BitNot))),
-                Token::Punct(Punctuation::PlusPlus) => unary_ops.push(Spanned::new(self.location, Follow::Unary(UnaryOp::PreIncr))),
-                Token::Punct(Punctuation::MinusMinus) => unary_ops.push(Spanned::new(self.location, Follow::Unary(UnaryOp::PreDecr))),
-                Token::Punct(Punctuation::BitAnd) => unary_ops.push(Spanned::new(self.location, Follow::Unary(UnaryOp::Reference))),
-                Token::Punct(Punctuation::Mul) => unary_ops.push(Spanned::new(self.location, Follow::Unary(UnaryOp::Dereference))),
+                Token![-] => unary_ops.push(Spanned::new(self.location, Follow::Unary(UnaryOp::Neg))),
+                Token![!] => unary_ops.push(Spanned::new(self.location, Follow::Unary(UnaryOp::Not))),
+                Token![~] => unary_ops.push(Spanned::new(self.location, Follow::Unary(UnaryOp::BitNot))),
+                Token![++] => unary_ops.push(Spanned::new(self.location, Follow::Unary(UnaryOp::PreIncr))),
+                Token![--] => unary_ops.push(Spanned::new(self.location, Follow::Unary(UnaryOp::PreDecr))),
+                Token![&] => unary_ops.push(Spanned::new(self.location, Follow::Unary(UnaryOp::Reference))),
+                Token![*] => unary_ops.push(Spanned::new(self.location, Follow::Unary(UnaryOp::Dereference))),
             } else break);
         }
 
@@ -2345,8 +2314,8 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
         loop {
             self.expected("operator");
             take_match!(self {
-                Token::Punct(Punctuation::PlusPlus) => follow.push(Spanned::new(self.location, Follow::Unary(UnaryOp::PostIncr))),
-                Token::Punct(Punctuation::MinusMinus) => follow.push(Spanned::new(self.location, Follow::Unary(UnaryOp::PostDecr))),
+                Token![++] => follow.push(Spanned::new(self.location, Follow::Unary(UnaryOp::PostIncr))),
+                Token![--] => follow.push(Spanned::new(self.location, Follow::Unary(UnaryOp::PostDecr))),
             } else {
                 match self.follow(&mut belongs_to, &mut typepath_base, in_ternary)? {
                     Some(f) => follow.push(f),
@@ -2373,8 +2342,6 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
     }
 
     fn term(&mut self, belongs_to: &mut Vec<Ident>) -> Status<Spanned<Term>> {
-        use super::lexer::Punctuation::*;
-
         let start = self.updated_location();
         // We look for a lot of different words here, so just explain the categories.
         self.expected("literal");
@@ -2397,7 +2364,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
                 // The following is what seems a reasonable approximation.
 
                 // Try to read an ident or path, then read the arguments.
-                if let Some(()) = self.exact(Token::Punct(Punctuation::Dot))? {
+                if let Some(()) = self.exact(Token![.])? {
                     if let Some(ident) = self.ident()? {
                         // prefab
                         // TODO: arrange for this ident to end up in the prefab's annotation
@@ -2462,14 +2429,14 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
 
             // term :: 'call_ext' ([library,] function) arglist
             Token::Ident(i, _) if *i == ident!("call_ext") => {
-                require!(self.exact(Token::Punct(Punctuation::LParen)));
+                require!(self.exact(Token!['(']));
                 let first = require!(self.expression());
-                let second = if self.exact(Token::Punct(Punctuation::Comma))?.is_some() {
+                let second = if self.exact(Token![,])?.is_some() {
                     Some(require!(self.expression()))
                 } else {
                     None
                 };
-                require!(self.exact(Token::Punct(Punctuation::RParen)));
+                require!(self.exact(Token![')']));
 
                 let args = require!(self.arguments(&[], &ident!("call_ext*")));
                 match second {
@@ -2512,7 +2479,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
                     }
 
                     // read "in" clause
-                    let in_list = if let Some(()) = self.exact(Token::Punct(Punctuation::In))? {
+                    let in_list = if let Some(()) = self.exact(Token![in])? {
                         if args.len() > 1 {
                             DMError::new(start, "bad `locate(x, y, z) in`")
                                 .with_severity(Severity::Warning)
@@ -2537,9 +2504,9 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
 
             // term :: 'as' '(' input_type ')'
             Token::Ident(i, _) if *i == ident!("as") => {
-                require!(self.exact(Token::Punct(Punctuation::LParen)));
+                require!(self.exact(Token!['(']));
                 let input_type = self.input_type()?.unwrap_or_else(InputType::empty);
-                require!(self.exact(Token::Punct(Punctuation::RParen)));
+                require!(self.exact(Token![')']));
                 Term::As(input_type)
             },
             // term :: __PROC__
@@ -2577,13 +2544,13 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
             },
 
             // term :: '..' arglist
-            Token::Punct(Punctuation::Super) => {
+            Token![..] => {
                 self.annotate(start, || Annotation::ParentCall);
                 Term::ParentCall(require!(self.arguments(&[], &ident!(".."))))
             },
 
             // term :: '.'
-            Token::Punct(Punctuation::Dot) => {
+            Token![.] => {
                 let mut dot_loc = self.location;
                 if let Some(ident) = self.ident()? {
                     // prefab
@@ -2602,7 +2569,7 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
                     Term::Ident(ident!("."))
                 }
             },
-            Token::Punct(Punctuation::Scope) => {
+            Token![::] => {
                 if let Some(ident) = self.ident()? {
                     if let Some(args) = self.arguments(&[], &ident!("::"))? {
                         Term::GlobalCall(ident, args)
@@ -2625,15 +2592,15 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
             Token::Float(val) => Term::Float(val),
 
             // term :: '(' expression ')'
-            Token::Punct(LParen) => {
-                if let Some(()) = self.exact(Token::Punct(Punctuation::RParen))? {
+            Token!['('] => {
+                if let Some(()) = self.exact(Token![')'])? {
                     self.error("`()` should be replaced with `null`")
                         .with_severity(Severity::Warning)
                         .register(self.context);
                     Term::Null
                 } else {
                     let expr = require!(self.expression());
-                    require!(self.exact(Token::Punct(Punctuation::RParen)));
+                    require!(self.exact(Token![')']));
                     Term::Expr(Box::new(expr))
                 }
             },
@@ -2657,8 +2624,8 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
             },
         } else match self.peek() {
             // term :: prefab
-            Token::Punct(Punctuation::Slash) |
-            Token::Punct(Punctuation::CloseColon) => {
+            Token![/] |
+            Token![CloseColon] => {
                 Term::Prefab(require!(self.prefab()))
             },
             _ => return try_another(),
@@ -2672,13 +2639,13 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
         // follow :: ('[' | '?[') expression ']'
         self.expected("field access");
         let kind = take_match!(self {
-            Token::Punct(Punctuation::LBracket) => ListAccessKind::Normal,
-            Token::Punct(Punctuation::SafeLBracket) => ListAccessKind::Safe,
+            Token!['['] => ListAccessKind::Normal,
+            Token![?'['] => ListAccessKind::Safe,
         } else return try_another());
 
         belongs_to.clear();
         let expr = require!(self.expression());
-        require!(self.exact(Token::Punct(Punctuation::RBracket)));
+        require!(self.exact(Token![']']));
         success(Spanned::new(
             first_location,
             Follow::Index(kind, Box::new(expr)),
@@ -2702,11 +2669,11 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
         self.expected("field access");
         let kind = take_match!(self {
             // TODO: only apply these rules if there is no whitespace around the punctuation
-            Token::Punct(Punctuation::Dot) => PropertyAccessKind::Dot,
-            Token::Punct(Punctuation::CloseColon) if !belongs_to.is_empty() || !in_ternary => PropertyAccessKind::Colon,
-            Token::Punct(Punctuation::SafeDot) => PropertyAccessKind::SafeDot,
-            Token::Punct(Punctuation::SafeColon) => PropertyAccessKind::SafeColon,
-            Token::Punct(Punctuation::Scope) => PropertyAccessKind::Scope,
+            Token![.] => PropertyAccessKind::Dot,
+            Token![CloseColon] if !belongs_to.is_empty() || !in_ternary => PropertyAccessKind::Colon,
+            Token![?.] => PropertyAccessKind::SafeDot,
+            Token![?:] => PropertyAccessKind::SafeColon,
+            Token![::] => PropertyAccessKind::Scope,
         } else return try_another());
 
         let mut index_op_loc = self.location;
@@ -2769,10 +2736,10 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
         let kind = take_match!(self {
             // follow :: '.' ident
             // TODO: only apply these rules if there is no whitespace around the punctuation
-            Token::Punct(Punctuation::Dot) => PropertyAccessKind::Dot,
-            Token::Punct(Punctuation::CloseColon) if !belongs_to.is_empty() || !in_ternary => PropertyAccessKind::Colon,
-            Token::Punct(Punctuation::SafeDot) => PropertyAccessKind::SafeDot,
-            Token::Punct(Punctuation::SafeColon) => PropertyAccessKind::SafeColon,
+            Token![.] => PropertyAccessKind::Dot,
+            Token![CloseColon] if !belongs_to.is_empty() || !in_ternary => PropertyAccessKind::Colon,
+            Token![?.] => PropertyAccessKind::SafeDot,
+            Token![?:] => PropertyAccessKind::SafeColon,
         } else return try_another());
 
         let mut index_op_loc = self.location;
@@ -2802,12 +2769,12 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
 
     /// a parenthesized, comma-separated list of expressions
     fn arguments(&mut self, parents: &[Ident], proc: &Ident) -> Status<Box<[Expression]>> {
-        leading!(self.exact(Token::Punct(Punctuation::LParen)));
+        leading!(self.exact(Token!['(']));
         let start = self.location;
 
         let mut arguments = Vec::new();
         // TODO: account for implicit nulls again
-        let result = self.separated(Punctuation::Comma, Punctuation::RParen, Some(()), |this| {
+        let result = self.separated(Token![,], Token![')'], Some(()), |this| {
             let arg_start = this.location;
             let result = this.expression();
             this.annotate(arg_start, || Annotation::ProcArgument(arguments.len()));
@@ -2832,35 +2799,33 @@ impl<'ctx, 'an, 'inp> Parser<'ctx, 'an, 'inp> {
     }
 
     fn pick_arguments(&mut self) -> Status<Box<PickArgs>> {
-        leading!(self.exact(Token::Punct(Punctuation::LParen)));
+        leading!(self.exact(Token!['(']));
         success(
-            require!(
-                self.separated(Punctuation::Comma, Punctuation::RParen, None, |this| {
-                    let expr = leading!(this.expression());
-                    if let Some(()) = this.exact(Token::Punct(Punctuation::Semicolon))? {
-                        success((Some(expr), require!(this.expression())))
-                    } else {
-                        success((None, expr))
-                    }
-                })
-            )
+            require!(self.separated(Token![,], Token![')'], None, |this| {
+                let expr = leading!(this.expression());
+                if let Some(()) = this.exact(Token![;])? {
+                    success((Some(expr), require!(this.expression())))
+                } else {
+                    success((None, expr))
+                }
+            }))
             .into(),
         )
     }
 
     fn separated<R: Clone, F: FnMut(&mut Self) -> Status<R>>(
         &mut self,
-        sep: Punctuation,
-        terminator: Punctuation,
+        sep: Token,
+        terminator: Token,
         allow_empty: Option<R>,
         mut f: F,
     ) -> Status<Vec<R>> {
         let mut comma_legal = false;
         let mut elems = Vec::new();
         loop {
-            if let Some(()) = self.exact(Token::Punct(terminator))? {
+            if let Some(()) = self.exact(&terminator)? {
                 return success(elems);
-            } else if let Some(()) = self.exact(Token::Punct(sep))? {
+            } else if let Some(()) = self.exact(&sep)? {
                 if comma_legal {
                     comma_legal = false;
                 } else if let Some(empty) = allow_empty.clone() {

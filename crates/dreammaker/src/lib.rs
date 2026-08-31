@@ -21,6 +21,8 @@ use indexmap::IndexMap;
 mod error;
 #[macro_use]
 mod intern;
+#[macro_use]
+pub mod lexer;
 pub mod annotation;
 pub mod ast;
 mod builtins;
@@ -28,7 +30,6 @@ pub mod config;
 pub mod constants;
 pub mod docs;
 mod indents;
-pub mod lexer;
 pub mod objtree;
 mod parser;
 pub mod preprocessor;
@@ -81,22 +82,21 @@ where
     let mut prev: Option<I::Item> = None;
     for token in input {
         match token.as_ref() {
-            lexer::Token::Punct(lexer::Punctuation::LBrace) => {
+            Token!['{'] => {
                 indents += 1;
                 needs_newline = true;
                 if show_ws {
                     write!(w, "{{")?;
                 }
             },
-            lexer::Token::Punct(lexer::Punctuation::RBrace) => {
+            Token!['}'] => {
                 indents -= 1;
                 needs_newline = true;
                 if show_ws {
                     write!(w, "}}")?;
                 }
             },
-            lexer::Token::Punct(lexer::Punctuation::Semicolon)
-            | lexer::Token::Punct(lexer::Punctuation::Newline) => {
+            Token![;] | Token!['\n'] => {
                 needs_newline = true;
                 if show_ws {
                     write!(w, ";")?;

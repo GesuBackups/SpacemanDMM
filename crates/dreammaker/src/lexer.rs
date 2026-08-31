@@ -272,6 +272,85 @@ pub enum Token {
     DocComment(DocComment),
 }
 
+/// Get a [Token] from Rust tokens, for use in consts and patterns.
+#[macro_export]
+#[rustfmt::skip]
+macro_rules! Token {
+    // Punctuation.
+    ['\t'] => { $crate::lexer::Token::Punct($crate::lexer::Punctuation::Tab) };
+    ['\n'] => { $crate::lexer::Token::Punct($crate::lexer::Punctuation::Newline) };
+    [' '] => { $crate::lexer::Token::Punct($crate::lexer::Punctuation::Space) };
+    [!] => { $crate::lexer::Token::Punct($crate::lexer::Punctuation::Not) };
+    [!=] => { $crate::lexer::Token::Punct($crate::lexer::Punctuation::NotEq) };
+    ['"'] => { $crate::lexer::Token::Punct($crate::lexer::Punctuation::DoubleQuote) };
+    [#] => { $crate::lexer::Token::Punct($crate::lexer::Punctuation::Hash) };
+    [# #] => { $crate::lexer::Token::Punct($crate::lexer::Punctuation::TokenPaste) };
+    [%] => { $crate::lexer::Token::Punct($crate::lexer::Punctuation::Mod) };
+    [%%] => { $crate::lexer::Token::Punct($crate::lexer::Punctuation::FloatMod) };
+    [%%=] => { $crate::lexer::Token::Punct($crate::lexer::Punctuation::FloatModAssign) };
+    [%=] => { $crate::lexer::Token::Punct($crate::lexer::Punctuation::ModAssign) };
+    [&] => { $crate::lexer::Token::Punct($crate::lexer::Punctuation::BitAnd) };
+    [&&] => { $crate::lexer::Token::Punct($crate::lexer::Punctuation::And) };
+    [&&=] => { $crate::lexer::Token::Punct($crate::lexer::Punctuation::AndAssign) };
+    [&=] => { $crate::lexer::Token::Punct($crate::lexer::Punctuation::BitAndAssign) };
+    ['\''] => { $crate::lexer::Token::Punct($crate::lexer::Punctuation::SingleQuote) };
+    ['('] => { $crate::lexer::Token::Punct($crate::lexer::Punctuation::LParen) };
+    [')'] => { $crate::lexer::Token::Punct($crate::lexer::Punctuation::RParen) };
+    [*] => { $crate::lexer::Token::Punct($crate::lexer::Punctuation::Mul) };
+    [**] => { $crate::lexer::Token::Punct($crate::lexer::Punctuation::Pow) };
+    [*=] => { $crate::lexer::Token::Punct($crate::lexer::Punctuation::MulAssign) };
+    [+] => { $crate::lexer::Token::Punct($crate::lexer::Punctuation::Add) };
+    [++] => { $crate::lexer::Token::Punct($crate::lexer::Punctuation::PlusPlus) };
+    [+=] => { $crate::lexer::Token::Punct($crate::lexer::Punctuation::AddAssign) };
+    [,] => { $crate::lexer::Token::Punct($crate::lexer::Punctuation::Comma) };
+    [-] => { $crate::lexer::Token::Punct($crate::lexer::Punctuation::Sub) };
+    [--] => { $crate::lexer::Token::Punct($crate::lexer::Punctuation::MinusMinus) };
+    [-=] => { $crate::lexer::Token::Punct($crate::lexer::Punctuation::SubAssign) };
+    [.] => { $crate::lexer::Token::Punct($crate::lexer::Punctuation::Dot) };
+    [..] => { $crate::lexer::Token::Punct($crate::lexer::Punctuation::Super) };
+    [...] => { $crate::lexer::Token::Punct($crate::lexer::Punctuation::Ellipsis) };
+    [/] => { $crate::lexer::Token::Punct($crate::lexer::Punctuation::Slash) };
+    [/ *] => { $crate::lexer::Token::Punct($crate::lexer::Punctuation::BlockComment) };
+    [/ /] => { $crate::lexer::Token::Punct($crate::lexer::Punctuation::LineComment) };
+    [/=] => { $crate::lexer::Token::Punct($crate::lexer::Punctuation::DivAssign) };
+    [:] => { $crate::lexer::Token::Punct($crate::lexer::Punctuation::Colon) };
+    [CloseColon] => { $crate::lexer::Token::Punct($crate::lexer::Punctuation::CloseColon) };
+    [::] => { $crate::lexer::Token::Punct($crate::lexer::Punctuation::Scope) };
+    [:=] => { $crate::lexer::Token::Punct($crate::lexer::Punctuation::AssignInto) };
+    [;] => { $crate::lexer::Token::Punct($crate::lexer::Punctuation::Semicolon) };
+    [<] => { $crate::lexer::Token::Punct($crate::lexer::Punctuation::Less) };
+    [<<] => { $crate::lexer::Token::Punct($crate::lexer::Punctuation::LShift) };
+    [<<=] => { $crate::lexer::Token::Punct($crate::lexer::Punctuation::LShiftAssign) };
+    [<=] => { $crate::lexer::Token::Punct($crate::lexer::Punctuation::LessEq) };
+    [<=>] => { $crate::lexer::Token::Punct($crate::lexer::Punctuation::LessOrGreater) };
+    [<>] => { $crate::lexer::Token::Punct($crate::lexer::Punctuation::LessGreater) };
+    [=] => { $crate::lexer::Token::Punct($crate::lexer::Punctuation::Assign) };
+    [==] => { $crate::lexer::Token::Punct($crate::lexer::Punctuation::Eq) };
+    [>] => { $crate::lexer::Token::Punct($crate::lexer::Punctuation::Greater) };
+    [>=] => { $crate::lexer::Token::Punct($crate::lexer::Punctuation::GreaterEq) };
+    [>>] => { $crate::lexer::Token::Punct($crate::lexer::Punctuation::RShift) };
+    [>>=] => { $crate::lexer::Token::Punct($crate::lexer::Punctuation::RShiftAssign) };
+    [?] => { $crate::lexer::Token::Punct($crate::lexer::Punctuation::QuestionMark) };
+    [?.] => { $crate::lexer::Token::Punct($crate::lexer::Punctuation::SafeDot) };
+    [?:] => { $crate::lexer::Token::Punct($crate::lexer::Punctuation::SafeColon) };
+    [?'['] => { $crate::lexer::Token::Punct($crate::lexer::Punctuation::SafeLBracket) };
+    ['['] => { $crate::lexer::Token::Punct($crate::lexer::Punctuation::LBracket) };
+    [']'] => { $crate::lexer::Token::Punct($crate::lexer::Punctuation::RBracket) };
+    [^] => { $crate::lexer::Token::Punct($crate::lexer::Punctuation::BitXor) };
+    [^=] => { $crate::lexer::Token::Punct($crate::lexer::Punctuation::BitXorAssign) };
+    ['{'] => { $crate::lexer::Token::Punct($crate::lexer::Punctuation::LBrace) };
+    ['{''"'] => { $crate::lexer::Token::Punct($crate::lexer::Punctuation::BlockString) };
+    [|] => { $crate::lexer::Token::Punct($crate::lexer::Punctuation::BitOr) };
+    [|=] => { $crate::lexer::Token::Punct($crate::lexer::Punctuation::BitOrAssign) };
+    [||] => { $crate::lexer::Token::Punct($crate::lexer::Punctuation::Or) };
+    [||=] => { $crate::lexer::Token::Punct($crate::lexer::Punctuation::OrAssign) };
+    ['}'] => { $crate::lexer::Token::Punct($crate::lexer::Punctuation::RBrace) };
+    [~] => { $crate::lexer::Token::Punct($crate::lexer::Punctuation::BitNot) };
+    [~!] => { $crate::lexer::Token::Punct($crate::lexer::Punctuation::NotEquiv) };
+    [~=] => { $crate::lexer::Token::Punct($crate::lexer::Punctuation::Equiv) };
+    [in] => { $crate::lexer::Token::Punct($crate::lexer::Punctuation::In) };
+}
+
 const _: () = assert!(std::mem::size_of::<Token>() <= 24);
 
 impl Token {
@@ -302,7 +381,7 @@ impl Token {
 
         // space
         match (prev, self) {
-            (&Token::Ident(_, true), _) | (&Token::Punct(Comma), _) => true,
+            (&Token::Ident(_, true), _) | (&Token![,], _) => true,
             (&Token::Ident(..), &Token::Punct(_))
             | (&Token::Ident(..), &Token::InterpStringEnd(_))
             | (&Token::Ident(..), &Token::InterpStringPart(_))
@@ -318,10 +397,7 @@ impl Token {
     pub fn is_whitespace(&self) -> bool {
         matches!(
             *self,
-            Token::Punct(Punctuation::Tab)
-                | Token::Punct(Punctuation::Newline)
-                | Token::Punct(Punctuation::Space)
-                | Token::Eof
+            Token!['\t'] | Token!['\n'] | Token![' '] | Token::Eof
         )
     }
 
@@ -1221,7 +1297,7 @@ impl<'ctx> Iterator for Lexer<'ctx> {
                         location.column += 1;
                         return Some(LocatedToken {
                             location,
-                            token: Token::Punct(Punctuation::Newline),
+                            token: Token!['\n'],
                         });
                     } else {
                         return None;
@@ -1246,7 +1322,7 @@ impl<'ctx> Iterator for Lexer<'ctx> {
             return match punct {
                 Some(Hash) if self.directive == Directive::None => {
                     self.directive = Directive::Hash;
-                    Some(locate(Punct(Hash)))
+                    Some(locate(Token![#]))
                 },
                 Some(BlockComment) => {
                     if let Some(t) = self.skip_block_comments() {
@@ -1278,11 +1354,11 @@ impl<'ctx> Iterator for Lexer<'ctx> {
                         self.interp_stack.push(interp);
                     }
                     self.close_allowed = true;
-                    Some(locate(Punct(RBracket)))
+                    Some(locate(Token![']']))
                 },
                 Some(RParen) => {
                     self.close_allowed = true;
-                    Some(locate(Punct(RParen)))
+                    Some(locate(Token![')']))
                 },
                 Some(v) => Some(locate(Punct(v))),
                 None => match first {
@@ -1298,7 +1374,7 @@ impl<'ctx> Iterator for Lexer<'ctx> {
                         }
                         // check keywords
                         if ident == ident!("in") {
-                            return Some(locate(Punct(In)));
+                            return Some(locate(Token![in]));
                         }
                         self.close_allowed = true;
                         Some(locate(Ident(ident, ws)))

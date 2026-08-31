@@ -1,8 +1,8 @@
 extern crate dreammaker as dm;
 
-use dm::lexer::Punctuation::*;
-use dm::lexer::Token::*;
-use dm::preprocessor::*;
+use dm::Token;
+use dm::lexer::Token::{Ident, Int};
+use dm::preprocessor::Preprocessor;
 
 fn process(source: &'static str) -> Vec<dm::lexer::Token> {
     let ctx = dm::Context::default();
@@ -11,10 +11,10 @@ fn process(source: &'static str) -> Vec<dm::lexer::Token> {
     // collect tokens, strip leading and trailing newlines
     let mut tokens: Vec<_> = pp
         .map(|loctok| loctok.token)
-        .skip_while(|tok| *tok == Punct(Newline))
+        .skip_while(|tok| *tok == Token!['\n'])
         .collect();
     ctx.assert_success();
-    while let Some(&Punct(Newline)) = tokens.last() {
+    while let Some(&Token!['\n']) = tokens.last() {
         tokens.pop();
     }
     tokens
@@ -33,24 +33,24 @@ CLAMP(alpha - CLAMP(beta - 2, 0, beta), 3, alpha)
         ),
         &[
             Ident("clamp".into(), false),
-            Punct(LParen),
+            Token!['('],
             Ident("alpha".into(), true),
-            Punct(Sub),
+            Token![-],
             Ident("clamp".into(), false),
-            Punct(LParen),
+            Token!['('],
             Ident("beta".into(), true),
-            Punct(Sub),
+            Token![-],
             Int(2),
-            Punct(Comma),
+            Token![,],
             Int(0),
-            Punct(Comma),
+            Token![,],
             Ident("beta".into(), false),
-            Punct(RParen),
-            Punct(Comma),
+            Token![')'],
+            Token![,],
             Int(3),
-            Punct(Comma),
+            Token![,],
             Ident("alpha".into(), false),
-            Punct(RParen),
+            Token![')'],
         ]
     );
 }
